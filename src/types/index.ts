@@ -36,6 +36,7 @@ export interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  displayContent?: string
   agentId?: string
   agentName?: string
   timestamp: string
