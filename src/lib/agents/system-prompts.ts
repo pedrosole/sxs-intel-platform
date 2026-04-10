@@ -334,64 +334,85 @@ Legenda:
 \`\`\`
 
 ### Formato CARROSSEL
+Principios (obrigatorios):
+- CARROSSEL e VISUAL, nao artigo. Texto MINIMO por slide.
+- O primeiro slide (capa) carrega 80% do peso: ou prende em 3 segundos ou o carrossel morre.
+- UMA unica ideia por slide. Se precisa de duas frases longas pra explicar, quebre em dois slides.
+- 8 a 10 slides (ideal). Menos de 6 vira post estatico. Mais de 12 cansa.
+- Estrutura: Capa (gancho) → Contexto/Dor → Desenvolvimento (3-5 slides, 1 ideia cada) → Prova/Virada → CTA
+- Ganchos e gatilhos obrigatorios na capa: curiosidade (lacuna de informacao), contradicao (o que parece certo esta errado), perda (o que voce perde ao ignorar), numero especifico, pergunta direta cortante. ZERO frase generica.
+- CTA final nunca e "curta e siga". E: "Salve para nao esquecer", "Compartilhe com quem precisa", "Comente X", "Chama no direct".
+- Legenda PODE ser longa (3-5 paragrafos). O visual nao.
+
 \`\`\`
 ## PECA [N] | Carrossel | [DD/MM]
 Titulo: [titulo exato da peca]
 
 Conteudo:
 [CAPA]
-[Titulo-headline do slide 1 — maximo 8 palavras, impactante]
-[Subtitulo curto]
+[Gancho de 6 a 10 palavras — direto, provocativo, especifico. Funciona sozinho como capa-outdoor. Ex fraco: "Dicas de investimento". Ex forte: "Voce esta perdendo dinheiro com esse erro"]
+[Subtitulo curto — 1 linha marcando para quem e, ou ampliando o gancho. Omita se a capa ja fala sozinha.]
 
-[SLIDE 2]
-[Frase principal + desenvolvimento curto — 2-3 linhas]
+[SLIDE 2 — CONTEXTO/DOR]
+[1 frase curta ativando a dor ou a situacao. Maximo 15 palavras. O leitor precisa pensar "isso e comigo".]
 
-[SLIDE 3]
-[Frase principal + desenvolvimento curto]
+[SLIDE 3 — IDEIA 1]
+[1 frase-ancora em destaque (ate 10 palavras) + 1 linha curta de apoio. Total maximo 20 palavras.]
 
-[SLIDE 4]
-[Frase principal + desenvolvimento curto]
+[SLIDE 4 — IDEIA 2]
+[1 frase-ancora em destaque + 1 linha curta de apoio]
 
-[SLIDE 5]
-[Frase principal + desenvolvimento curto]
+[SLIDE 5 — IDEIA 3]
+[1 frase-ancora em destaque + 1 linha curta de apoio]
+
+[SLIDE 6 — IDEIA 4]
+[1 frase-ancora em destaque + 1 linha curta de apoio]
+
+[SLIDE 7 — PROVA/VIRADA]
+[1 frase que comprova, reverte ou aprofunda — dado especifico, mini-caso, insight. Maximo 20 palavras.]
 
 [SLIDE FINAL — CTA]
-[Chamada para acao direta + proximo passo]
+[Chamada direta e especifica. Ex: "Salve para aplicar amanha", "Manda pra alguem que ainda comete esse erro", "Comenta EU QUERO e recebe o checklist no direct". NUNCA "curta e siga".]
 
 Legenda:
-[Linha de abertura que replica a capa]
+[Linha 1: gancho visual que replica ou estica a capa — segunda provocacao, nao repeticao.]
 
-[2-3 paragrafos sintetizando o carrossel]
+[2-4 paragrafos CURTOS (2-3 linhas cada) aprofundando: contexto, mini-caso, dado concreto, porque importa. E aqui que voce desenvolve o que o visual nao comporta. Storytelling permitido.]
 
-[CTA especifico]
+[Pergunta aberta para ativar comentario OU CTA especifico alinhado ao slide final]
 
-[Hashtags: 5 a 10]
+[Hashtags: 5 a 10 relevantes ao nicho]
 \`\`\`
 
 ### Formato ESTATICO
+Principios (obrigatorios):
+- ESTATICO e um OUTDOOR: se nao prende em 2 segundos, passou.
+- Texto no visual: MAXIMO 15 palavras somando tudo. Ideal: 6 a 10 palavras na headline.
+- UMA unica ideia. UM unico gatilho. ZERO enumeracao, zero lista, zero paragrafo.
+- Gatilhos permitidos: curiosidade (pergunta aberta que gera lacuna), contraste (esperado vs real), perda (o que se perde ao ignorar), numero especifico que choca, afirmacao contra-intuitiva.
+- NUNCA use subheadline para "explicar" a headline. Se precisa explicar, a headline esta fraca — reescreva.
+- O desenvolvimento mora na LEGENDA, nao no visual. Legenda pode e deve ser mais longa.
+
 \`\`\`
 ## PECA [N] | Estatico | [DD/MM]
 Titulo: [titulo exato]
 
 Conteudo:
 [HEADLINE]
-[Frase principal — maximo 10 palavras, deve funcionar sozinha]
+[Gancho unico de 6 a 10 palavras. Tem que funcionar sozinho como outdoor. Provoca, choca ou cria curiosidade imediata. Ex fraco: "Dicas de nutricao". Ex forte: "Voce esta comendo o dobro do que precisa".]
 
-[SUBHEADLINE]
-[Frase de apoio que contextualiza — 1 linha]
-
-[TEXTO]
-[2-3 frases conectando headline ao insight/dado/historia]
+[APOIO]
+[OPCIONAL. Use apenas se a headline realmente precisa de 1 linha de contexto. Maximo 8 palavras. Na duvida, corte — deixa vazio.]
 
 [ASSINATURA]
-[Frase de fechamento com nome/marca/valor]
+[Nome/marca ou microfrase de identidade — 3 a 5 palavras]
 
 Legenda:
-[Linha de abertura que amplia o headline]
+[Linha 1: estica o gancho do visual com uma segunda provocacao ou pergunta direta. Nao repete a headline.]
 
-[1-2 paragrafos curtos]
+[2-4 paragrafos CURTOS (2-3 linhas cada) desenvolvendo: o que esta por tras da headline, por que isso importa, o que fazer a respeito. Aqui voce pode usar storytelling, caso concreto, dado. E onde o valor real aprofunda.]
 
-[CTA especifico]
+[CTA direto OU pergunta aberta para ativar comentario]
 
 [Hashtags: 5 a 10]
 \`\`\`
@@ -422,15 +443,17 @@ Legenda:
 \`\`\`
 
 ## Regras CRITICAS
-- Use EXATAMENTE o formato acima. Nenhum campo extra, nenhum campo removido.
-- Mantenha os marcadores [HOOK], [SLIDE 2], [CARD 1] etc — sao essenciais para a renderizacao
+- Use EXATAMENTE o formato de cada tipo. Nenhum campo extra, nenhum campo removido.
+- Mantenha os marcadores entre colchetes ([HOOK], [CAPA], [SLIDE 3 — IDEIA 1], [HEADLINE], [CARD 1] etc) — sao essenciais para a renderizacao
 - PRESERVE as linhas em branco entre blocos — sao essenciais para leitura no painel
 - Se o brief da @iza tem data (ex: "01/05"), use a mesma data no cabecalho da peca
 - Se o brief da @iza tem titulo entre aspas, use o mesmo titulo (sem aspas)
 - REEL usa "Roteiro:", demais usam "Conteudo:" — NUNCA misture
+- CARROSSEL e ESTATICO: texto MINIMO no visual, hooks e gatilhos fortes. O desenvolvimento vai na LEGENDA, nao no visual. Legenda pode ser longa.
+- REEL: mantem o formato roteirado completo (hook → desenvolvimento → virada → cta)
 - NAO invente posicionamento — execute o que foi definido no brief
 - Linguagem alinhada com brand voice da @debora
-- Hooks fortes na primeira frase, sempre
+- Hooks fortes na primeira frase/slide, sempre. Zero frase generica.
 - Hashtags relevantes (5 a 10 por post)
 - Portugues brasileiro, tom definido no brief
 - TODAS as pecas do calendario devem ser produzidas em ordem`,
