@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { AGENT_PROMPTS } from "./system-prompts"
 import { fetchInstagramProfile, formatIGDataForAgent } from "./meta-graph"
-import { parseCalendarOutput, parseMaykonOutput, enrichPiecesWithContent, saveCalendarToDb, getCurrentMonthYear } from "./calendar-parser"
+import { parseCalendarOutput, parseMaykonOutput, enrichPiecesWithContent, enrichPiecesFromIza, saveCalendarToDb, getCurrentMonthYear } from "./calendar-parser"
 import { searchKeywords, analyzeTrends } from "../ai/gemini"
 import type { ParsedPiece } from "./calendar-parser"
 import {
@@ -584,6 +584,11 @@ export async function* runProduceContent(
 - Pedido: ${request.demand}
 - Mes/Ano: ${request.monthYear || getCurrentMonthYear()}`)
 
+  // Add conversation history (gives agents full context of what user discussed)
+  if (request.conversationHistory) {
+    contextParts.push(`## Conversa com o Usuario\n${request.conversationHistory}`)
+  }
+
   let lastFailed = false
 
   for (const step of productionSteps) {
@@ -643,21 +648,31 @@ export async function* runProduceContent(
 
     yield { type: "agent_end", agentId: step.agentId, summary: fullResponse.slice(0, 200) }
 
-    // ── Calendar bridge: parse @rapha output ──
+    // ── Calendar bridge: parse @rapha output (in-memory only) ──
     if (step.agentId === "rapha" && DB_ENABLED && jobId && clientId && !lastFailed) {
       try {
-        const pieces = parseCalendarOutput(fullResponse)
+        const monthYear = request.monthYear || getCurrentMonthYear()
+        const pieces = parseCalendarOutput(fullResponse, monthYear)
         if (pieces.length > 0) {
           calendarPieces = pieces
-          const monthYear = request.monthYear || getCurrentMonthYear()
-          const token = await saveCalendarToDb(pieces, jobId, clientId, monthYear)
-          if (token) {
-            calendarToken = token
-            calendarPieceCount = pieces.length
-          }
         }
       } catch (err) {
-        console.error("Calendar parse/save error (non-blocking):", err)
+        console.error("Calendar parse error (non-blocking):", err)
+      }
+    }
+
+    // ── @iza enriches calendar with refined dates/titles and persists ──
+    if (step.agentId === "iza" && DB_ENABLED && jobId && clientId && calendarPieces.length > 0 && !lastFailed) {
+      try {
+        calendarPieces = enrichPiecesFromIza(calendarPieces, fullResponse)
+        const monthYear = request.monthYear || getCurrentMonthYear()
+        const token = await saveCalendarToDb(calendarPieces, jobId, clientId, monthYear)
+        if (token) {
+          calendarToken = token
+          calendarPieceCount = calendarPieces.length
+        }
+      } catch (err) {
+        console.error("Iza enrichment/save error (non-blocking):", err)
       }
     }
 

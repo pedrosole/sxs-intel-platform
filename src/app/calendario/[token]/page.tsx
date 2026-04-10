@@ -445,11 +445,14 @@ export default function CalendarioPage() {
 
               {/* Content sections */}
               <div className="mt-6 space-y-5">
+                {selectedPiece.script && (
+                  <ContentSection
+                    label={selectedPiece.format === "reel" ? "Roteiro" : "Conteudo"}
+                    content={selectedPiece.script}
+                  />
+                )}
                 {selectedPiece.caption && (
                   <ContentSection label="Legenda" content={selectedPiece.caption} />
-                )}
-                {selectedPiece.script && (
-                  <ContentSection label="Roteiro" content={selectedPiece.script} />
                 )}
                 {selectedPiece.cta && (
                   <ContentSection label="CTA" content={selectedPiece.cta} />

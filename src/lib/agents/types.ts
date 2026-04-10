@@ -80,6 +80,7 @@ export interface ProduceContentRequest {
   niche: string
   demand: string
   monthYear?: string
+  conversationHistory?: string
 }
 
 export type RouteAction =

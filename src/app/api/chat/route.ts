@@ -83,9 +83,19 @@ export async function POST(request: Request) {
             case "process_briefing":
               pipeline = runProcessBriefing(directive.request, client)
               break
-            case "produce_content":
-              pipeline = runProduceContent(directive.request, client)
+            case "produce_content": {
+              // Inject conversation history for better context
+              const history = anthropicMessages
+                .map((m: { role: string; content: string }) =>
+                  `[${m.role === "user" ? "USUARIO" : "ASSISTENTE"}]: ${m.content}`
+                )
+                .join("\n\n")
+              pipeline = runProduceContent(
+                { ...directive.request, conversationHistory: history },
+                client
+              )
               break
+            }
             case "agents":
               pipeline = runAgents(directive.request, client)
               break
