@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { AGENT_PROMPTS } from "./system-prompts"
 import { fetchInstagramProfile, formatIGDataForAgent } from "./meta-graph"
 import { parseCalendarOutput, parseMaykonOutput, enrichPiecesWithContent, enrichPiecesFromIza, saveCalendarToDb, getCurrentMonthYear } from "./calendar-parser"
+import { distributeDates, formatSlotsForPrompt, parsePieceCount } from "./date-distributor"
 import { searchKeywords, analyzeTrends } from "../ai/gemini"
 import type { ParsedPiece } from "./calendar-parser"
 import {
@@ -578,11 +579,24 @@ export async function* runProduceContent(
   }
 
   // Add demand context
+  const targetMonthYear = request.monthYear || getCurrentMonthYear()
   contextParts.push(`## Demanda de Producao
 - Cliente: ${request.clientName}
 - Nicho: ${request.niche}
 - Pedido: ${request.demand}
-- Mes/Ano: ${request.monthYear || getCurrentMonthYear()}`)
+- Mes/Ano: ${targetMonthYear}`)
+
+  // Computa datas deterministicas (dias uteis alternados + especiais)
+  try {
+    const [yearStr, monthStr] = targetMonthYear.split("-")
+    const year = parseInt(yearStr, 10)
+    const month = parseInt(monthStr, 10)
+    const pieceCount = parsePieceCount(request.demand)
+    const slots = distributeDates(year, month, pieceCount)
+    contextParts.push(formatSlotsForPrompt(slots, targetMonthYear))
+  } catch (err) {
+    console.error("Date distribution error (non-blocking):", err)
+  }
 
   // Add conversation history (gives agents full context of what user discussed)
   if (request.conversationHistory) {

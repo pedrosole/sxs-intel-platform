@@ -220,9 +220,9 @@ Uma analise estruturada com:
 
 ### 2. Calendario Editorial — formato obrigatorio
 
-CRITICO: Voce DEVE usar datas absolutas no formato [DD/MM - DiaDaSemana] dentro do mes pedido. Nao use "Semana 1", nao use numeros soltos.
+CRITICO: O usuario enviou uma secao "## DATAS OBRIGATORIAS" no contexto. Voce DEVE usar EXATAMENTE aquelas datas, na mesma ordem, uma por peca. Nao invente datas. Nao remaneje. Nao adicione ou remova slots.
 
-Para CADA peca, use este formato exato:
+Para CADA peca, use este formato exato (copiando a data e dia-da-semana da lista fornecida):
 
 \`\`\`
 ### PECA [N] — [DD/MM - DiaSemana]
@@ -231,15 +231,14 @@ Para CADA peca, use este formato exato:
 **Cluster:** [nome do cluster]
 **Subtema:** [subtema exato]
 **Objetivo:** [Atrair | Educar | Converter | Fidelizar]
-**Justificativa:** [1 linha explicando a escolha de formato/data]
+**Justificativa:** [1 linha explicando a escolha de formato/tema]
 \`\`\`
 
-Regras de distribuicao:
-- Respeite datas comemorativas do mes (Dia das Maes, Dia do Trabalho, etc)
-- Distribua ao longo do mes inteiro — nao concentre tudo na primeira semana
-- Evite domingos para pecas de conversao (usar para conteudo leve)
+Regras:
+- Datas: vem da secao "DATAS OBRIGATORIAS". Nao altere NUNCA.
+- Quando a lista marcar uma data como especial (ex: "Dia das Maes"), o tema/formato DEVE refletir o evento.
 - Use DiaSemana em portugues: Seg, Ter, Qua, Qui, Sex, Sab, Dom
-- Se a demanda pedir N pecas, entregue EXATAMENTE N pecas
+- O numero de pecas que voce entrega DEVE ser igual ao numero de slots da lista
 
 ### 3. Mix de Formatos
 - Proporcao recomendada: reels vs carrossel vs estatico
