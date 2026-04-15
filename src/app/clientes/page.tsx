@@ -84,7 +84,7 @@ export default function ClientesPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
-            <div key={client.id} className="glass-card rounded-xl p-5">
+            <Link key={client.id} href={`/clientes/${client.slug}`} className="glass-card rounded-xl p-5 block hover:ring-1 hover:ring-primary/30 transition-all">
               {/* Header */}
               <div className="flex items-center gap-3 mb-3">
                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusColor[client.status] || "bg-muted-foreground"}`} />
@@ -153,7 +153,7 @@ export default function ClientesPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       </main>

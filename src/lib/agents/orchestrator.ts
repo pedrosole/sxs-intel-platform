@@ -722,7 +722,31 @@ export async function* runProduceContent(
   if (DB_ENABLED && jobId && clientId) {
     try {
       await completeJob(jobId, lastFailed ? "partial" : "completed")
-      await updateClientSummary({ clientId, jobId })
+
+      // Extract brand_voice and positioning from previous job outputs if not yet saved
+      let brandVoice: string | undefined
+      let positioning: string | undefined
+      const existingSummary = await getClientSummary(clientId)
+      if (!existingSummary?.brand_voice_summary || !existingSummary?.positioning_summary) {
+        const prevOutputs = await getLastJobOutputs(clientId)
+        if (prevOutputs) {
+          for (const output of prevOutputs) {
+            if (!brandVoice && output.agent_name.toLowerCase() === "debora") {
+              brandVoice = extractSection(output.content, "Brand Voice") || undefined
+            }
+            if (!positioning && output.agent_name.toLowerCase() === "athena") {
+              positioning = extractSection(output.content, "Narrativa Central") || undefined
+            }
+          }
+        }
+      }
+
+      await updateClientSummary({
+        clientId,
+        jobId,
+        brandVoice,
+        positioning,
+      })
     } catch { /* non-blocking */ }
   }
 
