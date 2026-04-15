@@ -163,4 +163,32 @@ export const agents: Agent[] = [
       },
     ],
   },
+  {
+    id: "leo",
+    name: "Leo",
+    role: "Designer Visual",
+    icon: "🎨",
+    order: 8,
+    functionalName: "visual-design-agent",
+    description:
+      "Transforma pecas textuais aprovadas em visuais prontos para Instagram. Gera imagens de fundo via Gemini, monta HTML com logo, tipografia e overlay, faz preview e exporta PNG 1080x1350. Respeita identidade visual do cliente — cores, fontes e logo sempre alinhados.",
+    templates: ["instagram-visual-piece", "carousel-multi-slide"],
+    contexts: [
+      {
+        id: "ctx-leo-visual-design",
+        name: "leo-visual-design.md",
+        content: "",
+        active: true,
+      },
+    ],
+    skills: [
+      {
+        id: "skill-instagram-carousel",
+        name: "Instagram Carousel",
+        description:
+          "Gera carrosseis HTML swipeable com slides exportaveis em 1080x1350px. Workflow completo: brand setup, slide copy, design system, HTML, export Playwright.",
+        learnings: [],
+      },
+    ],
+  },
 ]

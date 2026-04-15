@@ -1,3 +1,10 @@
+export interface AgentSkill {
+  id: string
+  name: string
+  description: string
+  learnings: string[]
+}
+
 export interface Agent {
   id: string
   name: string
@@ -8,6 +15,7 @@ export interface Agent {
   description: string
   templates: string[]
   contexts: AgentContext[]
+  skills?: AgentSkill[]
 }
 
 export interface AgentContext {

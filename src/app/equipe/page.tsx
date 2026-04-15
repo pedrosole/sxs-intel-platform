@@ -10,7 +10,7 @@ export default function EquipePage() {
             Equipe <span className="text-primary">SXS</span> Intel
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            8 agentes especializados no pipeline de inteligencia de conteudo
+            9 agentes especializados no pipeline de inteligencia de conteudo
           </p>
         </div>
         <AgentGrid />

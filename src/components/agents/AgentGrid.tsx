@@ -30,13 +30,18 @@ export function AgentGrid() {
             <p className="mt-2 mb-4 line-clamp-2 leading-relaxed text-muted-foreground" style={{ fontSize: "var(--font-caption)" }}>
               {agent.description}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary" className="bg-muted text-muted-foreground" style={{ fontSize: "var(--font-micro)" }}>
                 {agent.contexts.length} ctx
               </Badge>
               <Badge variant="secondary" className="bg-muted text-muted-foreground" style={{ fontSize: "var(--font-micro)" }}>
                 {agent.templates.length} templates
               </Badge>
+              {agent.skills && agent.skills.length > 0 && (
+                <Badge variant="secondary" className="bg-primary/10 text-primary" style={{ fontSize: "var(--font-micro)" }}>
+                  {agent.skills.length} skill{agent.skills.length > 1 ? "s" : ""}
+                </Badge>
+              )}
             </div>
           </div>
         </Link>
