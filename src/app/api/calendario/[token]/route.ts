@@ -10,7 +10,7 @@ export async function GET(
   // Get calendar meta
   const { data: meta, error: metaError } = await supabase
     .from("calendar_meta")
-    .select("*, clients(name, niche, instagram_handle)")
+    .select("*, clients(name, slug, niche, instagram_handle)")
     .eq("share_token", token)
     .single()
 

@@ -37,6 +37,19 @@ export async function GET() {
         .limit(1)
         .single()
 
+      // Visual design progress
+      const { count: totalPieces } = await supabase
+        .from("calendar_pieces")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", client.id)
+        .in("status", ["aprovado", "em_design", "visual_aprovado", "exportado"])
+
+      const { count: visualDone } = await supabase
+        .from("calendar_pieces")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", client.id)
+        .in("status", ["visual_aprovado", "exportado"])
+
       return {
         ...client,
         jobs_total: jobs?.length || 0,
@@ -44,6 +57,8 @@ export async function GET() {
         last_job: jobs?.[0] || null,
         calendars: calendars || [],
         last_briefing: briefing || null,
+        visual_total: totalPieces || 0,
+        visual_done: visualDone || 0,
       }
     })
   )

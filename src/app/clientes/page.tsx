@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { AppSidebar } from "@/components/layout/AppSidebar"
-import { Loader2, Calendar, FileText, ExternalLink } from "lucide-react"
+import { Loader2, Calendar, FileText, ExternalLink, Paintbrush } from "lucide-react"
 
 interface ClientData {
   id: string
@@ -18,6 +18,8 @@ interface ClientData {
   last_job: { status: string; completed_at: string; pipeline_mode: string } | null
   calendars: { share_token: string; month_year: string; created_at: string }[]
   last_briefing: { type: string; pipeline_mode: string; created_at: string } | null
+  visual_total: number
+  visual_done: number
 }
 
 const statusColor: Record<string, string> = {
@@ -126,6 +128,12 @@ export default function ClientesPage() {
                   <FileText className="h-3 w-3 text-muted-foreground" />
                   <span className="text-xs text-foreground">{client.jobs_completed} entregas</span>
                 </div>
+                {client.visual_total > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1">
+                    <Paintbrush className="h-3 w-3 text-primary" />
+                    <span className="text-xs text-primary">{client.visual_done}/{client.visual_total} visuais</span>
+                  </div>
+                )}
                 {client.last_briefing && (
                   <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1">
                     <span className="text-xs text-foreground">

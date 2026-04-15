@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Check, X, ChevronLeft, Clock, Share2, MessageSquare } from "lucide-react"
+import Link from "next/link"
+import { Check, X, ChevronLeft, Clock, Share2, MessageSquare, Paintbrush, FileDown } from "lucide-react"
 
 // ── Types ──
 interface Piece {
@@ -20,7 +21,7 @@ interface Piece {
   cluster: string | null
   objective: string | null
   cta: string | null
-  status: "pendente" | "aprovado" | "reprovado"
+  status: "pendente" | "aprovado" | "reprovado" | "em_design" | "visual_aprovado" | "exportado"
   rejection_reason: string | null
   sort_order: number
 }
@@ -36,6 +37,7 @@ interface CalendarMeta {
   share_token: string
   clients: {
     name: string
+    slug: string
     niche: string
     instagram_handle: string | null
   }
@@ -164,7 +166,7 @@ export default function CalendarioPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   // Stats
-  const approved = pieces.filter((p) => p.status === "aprovado").length
+  const approved = pieces.filter((p) => ["aprovado", "em_design", "visual_aprovado", "exportado"].includes(p.status)).length
   const rejected = pieces.filter((p) => p.status === "reprovado").length
   const pending = pieces.filter((p) => p.status === "pendente").length
 
@@ -317,7 +319,7 @@ export default function CalendarioPage() {
                         <button
                           key={piece.id}
                           onClick={() => setSelectedPiece(piece)}
-                          className={`w-full rounded-md px-1.5 py-1 text-left text-[11px] leading-tight transition-all hover:brightness-125 ${fmt.bg} ${fmt.text} ${piece.status === "aprovado" ? "ring-1 ring-emerald-500/30" : ""}`}
+                          className={`w-full rounded-md px-1.5 py-1 text-left text-[11px] leading-tight transition-all hover:brightness-125 ${fmt.bg} ${fmt.text} ${["aprovado", "em_design", "visual_aprovado", "exportado"].includes(piece.status) ? "ring-1 ring-emerald-500/30" : ""}`}
                         >
                           <span className="block truncate font-medium">{piece.title}</span>
                         </button>
@@ -515,9 +517,43 @@ export default function CalendarioPage() {
                   </>
                 )}
                 {selectedPiece.status === "aprovado" && (
-                  <div className="rounded-xl bg-emerald-500/10 p-4 text-center">
-                    <Check className="mx-auto h-6 w-6 text-emerald-400" />
-                    <p className="mt-1 text-sm font-medium text-emerald-400">Conteudo aprovado</p>
+                  <div className="space-y-3">
+                    <div className="rounded-xl bg-emerald-500/10 p-4 text-center">
+                      <Check className="mx-auto h-6 w-6 text-emerald-400" />
+                      <p className="mt-1 text-sm font-medium text-emerald-400">Conteudo aprovado</p>
+                    </div>
+                    <Link
+                      href={`/clientes/${meta.clients.slug}/design?piece=${selectedPiece.id}`}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+                    >
+                      <Paintbrush className="h-4 w-4" /> Criar Visual
+                    </Link>
+                  </div>
+                )}
+                {selectedPiece.status === "em_design" && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl bg-blue-500/10 p-4 text-center">
+                      <Paintbrush className="mx-auto h-6 w-6 text-blue-400" />
+                      <p className="mt-1 text-sm font-medium text-blue-400">Em producao visual</p>
+                    </div>
+                    <Link
+                      href={`/clientes/${meta.clients.slug}/design?piece=${selectedPiece.id}`}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-blue-500 active:scale-[0.98]"
+                    >
+                      <Paintbrush className="h-4 w-4" /> Abrir no Design Studio
+                    </Link>
+                  </div>
+                )}
+                {selectedPiece.status === "visual_aprovado" && (
+                  <div className="rounded-xl bg-green-400/10 p-4 text-center">
+                    <Check className="mx-auto h-6 w-6 text-green-400" />
+                    <p className="mt-1 text-sm font-medium text-green-400">Visual aprovado</p>
+                  </div>
+                )}
+                {selectedPiece.status === "exportado" && (
+                  <div className="rounded-xl bg-primary/10 p-4 text-center">
+                    <FileDown className="mx-auto h-6 w-6 text-primary" />
+                    <p className="mt-1 text-sm font-medium text-primary">PNG exportado</p>
                   </div>
                 )}
               </div>
@@ -536,6 +572,9 @@ function StatusDot({ status }: { status: string }) {
     pendente: "bg-amber-500",
     aprovado: "bg-emerald-500",
     reprovado: "bg-red-500",
+    em_design: "bg-blue-500",
+    visual_aprovado: "bg-green-400",
+    exportado: "bg-primary",
   }
   return <span className={`h-2 w-2 shrink-0 rounded-full ${colors[status] || "bg-muted"}`} />
 }
@@ -545,10 +584,21 @@ function StatusBadge({ status }: { status: string }) {
     pendente: "bg-amber-500/20 text-amber-400",
     aprovado: "bg-emerald-500/20 text-emerald-400",
     reprovado: "bg-red-500/20 text-red-400",
+    em_design: "bg-blue-500/20 text-blue-400",
+    visual_aprovado: "bg-green-400/20 text-green-400",
+    exportado: "bg-primary/20 text-primary",
+  }
+  const labels: Record<string, string> = {
+    pendente: "pendente",
+    aprovado: "aprovado",
+    reprovado: "reprovado",
+    em_design: "em design",
+    visual_aprovado: "visual pronto",
+    exportado: "exportado",
   }
   return (
     <span className={`rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase ${styles[status] || "bg-muted text-muted-foreground"}`}>
-      {status}
+      {labels[status] || status}
     </span>
   )
 }

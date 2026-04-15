@@ -344,3 +344,114 @@ export async function buildHermesContext(): Promise<string> {
 
   return lines.join("\n")
 }
+
+// ── Client Assets ──
+
+export async function listClientAssets(clientId: string, category?: string) {
+  let query = supabase
+    .from("client_assets")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("sort_order")
+
+  if (category) {
+    query = query.eq("category", category)
+  }
+
+  const { data, error } = await query
+  if (error) throw new Error(`Erro ao listar assets: ${error.message}`)
+  return data || []
+}
+
+export async function createClientAsset(data: {
+  clientId: string
+  category: "logo" | "color" | "font" | "reference"
+  role?: string
+  label?: string
+  filename: string
+  storagePath: string
+  mimeType?: string
+  fileSize?: number
+  metadata?: Record<string, unknown>
+  notes?: string
+  sortOrder?: number
+}) {
+  const { data: created, error } = await supabase
+    .from("client_assets")
+    .insert({
+      client_id: data.clientId,
+      category: data.category,
+      role: data.role || null,
+      label: data.label || null,
+      filename: data.filename,
+      storage_path: data.storagePath,
+      mime_type: data.mimeType || null,
+      file_size: data.fileSize || null,
+      metadata: data.metadata || {},
+      notes: data.notes || null,
+      sort_order: data.sortOrder || 0,
+    })
+    .select("id")
+    .single()
+
+  if (error) throw new Error(`Erro ao criar asset: ${error.message}`)
+  return created!.id as string
+}
+
+export async function updateClientAsset(
+  assetId: string,
+  updates: {
+    role?: string
+    label?: string
+    metadata?: Record<string, unknown>
+    notes?: string
+    sortOrder?: number
+  },
+) {
+  const { error } = await supabase
+    .from("client_assets")
+    .update({
+      ...(updates.role !== undefined && { role: updates.role }),
+      ...(updates.label !== undefined && { label: updates.label }),
+      ...(updates.metadata !== undefined && { metadata: updates.metadata }),
+      ...(updates.notes !== undefined && { notes: updates.notes }),
+      ...(updates.sortOrder !== undefined && { sort_order: updates.sortOrder }),
+    })
+    .eq("id", assetId)
+
+  if (error) throw new Error(`Erro ao atualizar asset: ${error.message}`)
+}
+
+export async function deleteClientAsset(assetId: string) {
+  // Get storage path before deleting record
+  const { data: asset } = await supabase
+    .from("client_assets")
+    .select("storage_path")
+    .eq("id", assetId)
+    .single()
+
+  if (asset) {
+    // Remove file from storage
+    await supabase.storage
+      .from("client-assets")
+      .remove([(asset as { storage_path: string }).storage_path])
+  }
+
+  const { error } = await supabase
+    .from("client_assets")
+    .delete()
+    .eq("id", assetId)
+
+  if (error) throw new Error(`Erro ao deletar asset: ${error.message}`)
+}
+
+export async function getClientAsset(assetId: string) {
+  const { data, error } = await supabase
+    .from("client_assets")
+    .select("*")
+    .eq("id", assetId)
+    .single()
+
+  if (error) throw new Error(`Erro ao buscar asset: ${error.message}`)
+  return data
+}

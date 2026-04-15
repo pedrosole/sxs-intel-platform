@@ -26,6 +26,26 @@ export interface Database {
         Insert: ClientSummaryInsert
         Update: Partial<ClientSummaryInsert>
       }
+      client_assets: {
+        Row: ClientAssetRow
+        Insert: ClientAssetInsert
+        Update: Partial<ClientAssetInsert>
+      }
+      design_pieces: {
+        Row: DesignPieceRow
+        Insert: DesignPieceInsert
+        Update: Partial<DesignPieceInsert>
+      }
+      calendar_pieces: {
+        Row: CalendarPieceRow
+        Insert: CalendarPieceInsert
+        Update: Partial<CalendarPieceInsert>
+      }
+      calendar_meta: {
+        Row: CalendarMetaRow
+        Insert: CalendarMetaInsert
+        Update: Partial<CalendarMetaInsert>
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
@@ -111,3 +131,86 @@ export interface ClientSummaryRow {
 }
 
 export type ClientSummaryInsert = Omit<ClientSummaryRow, "id" | "updated_at">
+
+// ── client_assets ──
+export interface ClientAssetRow {
+  id: string
+  client_id: string
+  category: "logo" | "color" | "font" | "reference"
+  role: string | null
+  label: string | null
+  filename: string
+  storage_path: string
+  mime_type: string | null
+  file_size: number | null
+  metadata: Record<string, unknown>
+  notes: string | null
+  sort_order: number
+  created_at: string
+}
+
+export type ClientAssetInsert = Omit<ClientAssetRow, "id" | "created_at">
+
+// ── design_pieces ──
+export interface DesignPieceRow {
+  id: string
+  calendar_piece_id: string
+  client_id: string
+  status: "pending" | "generating" | "preview" | "approved" | "exported"
+  bg_image_path: string | null
+  bg_prompt: string | null
+  html_content: string | null
+  logo_variant: string | null
+  export_path: string | null
+  revision_count: number
+  feedback: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type DesignPieceInsert = Omit<DesignPieceRow, "id" | "created_at" | "updated_at">
+
+// ── calendar_pieces ──
+export type CalendarPieceStatus = "pendente" | "aprovado" | "reprovado" | "em_design" | "visual_aprovado" | "exportado"
+
+export interface CalendarPieceRow {
+  id: string
+  job_id: string
+  client_id: string
+  day: number
+  month_year: string
+  format: string
+  channel: string
+  title: string
+  subtitle: string | null
+  caption: string | null
+  script: string | null
+  notes: string | null
+  references_urls: string[] | null
+  cluster: string | null
+  objective: string | null
+  cta: string | null
+  status: CalendarPieceStatus
+  rejection_reason: string | null
+  sort_order: number
+  created_at: string
+}
+
+export type CalendarPieceInsert = Omit<CalendarPieceRow, "id" | "created_at">
+
+// ── calendar_meta ──
+export interface CalendarMetaRow {
+  id: string
+  job_id: string
+  client_id: string
+  month_year: string
+  campaign_name: string | null
+  campaign_objective: string | null
+  campaign_cta: string | null
+  general_comments: string | null
+  share_token: string
+  created_at: string
+  updated_at: string
+}
+
+export type CalendarMetaInsert = Omit<CalendarMetaRow, "id" | "created_at" | "updated_at" | "share_token">

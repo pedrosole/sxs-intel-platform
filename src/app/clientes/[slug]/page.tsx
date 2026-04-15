@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  ImageIcon,
+  Paintbrush,
 } from "lucide-react"
 
 interface JobOutput {
@@ -165,6 +167,22 @@ export default function ClienteDetailPage() {
                 {" "}&middot; desde {new Date(client.created_at).toLocaleDateString("pt-BR")}
               </p>
             </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2 mb-6">
+            <Link
+              href={`/clientes/${slug}/assets`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary hover:bg-primary/20 transition-colors"
+            >
+              <ImageIcon className="h-4 w-4" /> Gerenciar Assets
+            </Link>
+            <Link
+              href={`/clientes/${slug}/design`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary hover:bg-primary/20 transition-colors"
+            >
+              <Paintbrush className="h-4 w-4" /> Design Studio
+            </Link>
           </div>
 
           {/* Summary cards */}

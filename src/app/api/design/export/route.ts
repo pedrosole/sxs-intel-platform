@@ -1,0 +1,125 @@
+import { chromium } from "playwright-core"
+import { supabase } from "@/lib/db/supabase"
+
+export const runtime = "nodejs"
+export const maxDuration = 300
+
+export async function POST(request: Request) {
+  const body = await request.json()
+  const { designPieceId } = body as { designPieceId: string }
+
+  if (!designPieceId) {
+    return Response.json({ error: "designPieceId obrigatorio" }, { status: 400 })
+  }
+
+  // Load design piece
+  const { data: dp, error } = await supabase
+    .from("design_pieces")
+    .select("*, calendar_pieces!inner(title, format, client_id, clients!inner(slug))")
+    .eq("id", designPieceId)
+    .single()
+
+  if (error || !dp) {
+    return Response.json({ error: "Design piece nao encontrado" }, { status: 404 })
+  }
+
+  const piece = dp as Record<string, unknown>
+  const htmlContent = piece.html_content as string
+
+  if (!htmlContent) {
+    return Response.json({ error: "HTML nao gerado ainda" }, { status: 400 })
+  }
+
+  // Extract slug from nested join
+  const calPiece = piece.calendar_pieces as Record<string, unknown>
+  const clientData = calPiece.clients as Record<string, unknown>
+  const slug = clientData.slug as string
+  const title = calPiece.title as string
+
+  let browser = null
+  try {
+    // Launch Playwright
+    browser = await chromium.launch({
+      headless: true,
+    })
+
+    const page = await browser.newPage({
+      viewport: { width: 420, height: 525 },
+      deviceScaleFactor: 2.5714, // 420 * 2.5714 ≈ 1080, 525 * 2.5714 ≈ 1350
+    })
+
+    // Load HTML content
+    await page.setContent(htmlContent, { waitUntil: "networkidle" })
+
+    // Wait for fonts to load
+    await page.waitForTimeout(2000)
+
+    // Take screenshot
+    const pngBuffer = await page.screenshot({
+      type: "png",
+      clip: { x: 0, y: 0, width: 420, height: 525 },
+    })
+
+    await browser.close()
+    browser = null
+
+    // Save to Supabase Storage
+    const timestamp = Date.now()
+    const safeName = title
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40)
+
+    const exportPath = `${slug}/${safeName}-${timestamp}.png`
+
+    const { error: uploadError } = await supabase.storage
+      .from("exports")
+      .upload(exportPath, pngBuffer, {
+        contentType: "image/png",
+        upsert: false,
+      })
+
+    if (uploadError) {
+      return Response.json({ error: `Storage upload falhou: ${uploadError.message}` }, { status: 500 })
+    }
+
+    // Get public URL (exports bucket is public)
+    const { data: urlData } = supabase.storage
+      .from("exports")
+      .getPublicUrl(exportPath)
+
+    const publicUrl = urlData?.publicUrl || null
+
+    // Update design_pieces
+    await supabase
+      .from("design_pieces")
+      .update({
+        export_path: exportPath,
+        status: "exported",
+      })
+      .eq("id", designPieceId)
+
+    // Update calendar_pieces status
+    await supabase
+      .from("calendar_pieces")
+      .update({ status: "exportado" })
+      .eq("id", piece.calendar_piece_id)
+
+    return Response.json({
+      exportPath,
+      url: publicUrl,
+      size: pngBuffer.length,
+      dimensions: { width: 1080, height: 1350 },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido"
+    return Response.json({ error: `Export falhou: ${message}` }, { status: 500 })
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+}
