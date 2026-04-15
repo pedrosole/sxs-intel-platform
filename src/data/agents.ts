@@ -96,6 +96,15 @@ export const agents: Agent[] = [
         active: true,
       },
     ],
+    skills: [
+      {
+        id: "skill-content-architecture",
+        name: "Arquitetura de Conteudo",
+        description:
+          "Distribuicao de temas, clusters, formatos e angulos ao longo do calendario editorial com variedade e intencionalidade.",
+        learnings: [],
+      },
+    ],
   },
   {
     id: "iza",
@@ -108,6 +117,15 @@ export const agents: Agent[] = [
       "Traduz a pauta em instrucao clara por peca, com objetivo, angulo, prova, CTA e restricoes criativas. Entrega um brief fechado o suficiente para reduzir improviso na producao.",
     templates: ["content-brief"],
     contexts: [],
+    skills: [
+      {
+        id: "skill-content-briefing",
+        name: "Briefing de Conteudo",
+        description:
+          "Construcao de briefs por peca com angulo, restricoes, gancho sazonal e equilibrio tematico.",
+        learnings: [],
+      },
+    ],
   },
   {
     id: "maykon",
@@ -125,6 +143,15 @@ export const agents: Agent[] = [
       "content-caption",
     ],
     contexts: [],
+    skills: [
+      {
+        id: "skill-copywriting",
+        name: "Copywriting & Roteiro",
+        description:
+          "Producao de roteiros, legendas, headlines e textos de apoio para todos os formatos de conteudo.",
+        learnings: [],
+      },
+    ],
   },
   {
     id: "argos",
@@ -137,6 +164,15 @@ export const agents: Agent[] = [
       "Revisa clareza, originalidade, aderencia a voz, forca da mensagem, excesso de cliche e coerencia com o brief. Tem poder de veto — barra frase feita, abstracao vazia e desalinhamento.",
     templates: ["content-qa-review"],
     contexts: [],
+    skills: [
+      {
+        id: "skill-content-qa",
+        name: "QA Editorial",
+        description:
+          "Revisao de qualidade editorial: tom, cliches, agressividade, profundidade, coerencia e compliance.",
+        learnings: [],
+      },
+    ],
   },
   {
     id: "jarbas",
