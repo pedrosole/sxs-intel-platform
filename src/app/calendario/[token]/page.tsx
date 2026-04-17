@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { Check, X, ChevronLeft, Clock, Share2, MessageSquare, Paintbrush, FileDown } from "lucide-react"
+import { Check, X, ChevronLeft, Clock, Share2, MessageSquare, Paintbrush, FileDown, RefreshCw, AlertTriangle } from "lucide-react"
 
 // ── Types ──
 interface Piece {
@@ -80,6 +80,8 @@ export default function CalendarioPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [refacting, setRefacting] = useState<string | null>(null)
+  const [refactError, setRefactError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -130,6 +132,37 @@ export default function CalendarioPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generalComments }),
     })
+  }
+
+  async function refactPiece(pieceId: string) {
+    setRefacting(pieceId)
+    setRefactError(null)
+    try {
+      const res = await fetch("/api/calendar/refact-piece", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pieceId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setRefactError(data.error || "Erro ao refazer peca")
+        if (data.escalated) {
+          setRefactError(`${data.error} Necessaria revisao humana.`)
+        }
+        return
+      }
+      // Reload all data to get fresh content
+      await loadData()
+      // Update selected piece if it was the one refacted
+      if (selectedPiece?.id === pieceId) {
+        const updated = pieces.find((p) => p.id === pieceId)
+        if (updated) setSelectedPiece({ ...updated, status: "pendente" })
+      }
+    } catch {
+      setRefactError("Falha na conexao com o servidor")
+    } finally {
+      setRefacting(null)
+    }
   }
 
   function copyShareLink() {
@@ -369,6 +402,62 @@ export default function CalendarioPage() {
           </div>
         </div>
 
+        {/* ── Pecas Reprovadas ── */}
+        {rejectedPieces.length > 0 && (
+          <div className="mt-8 rounded-xl border border-red-500/20 bg-red-500/5 p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-red-400">
+                Pecas Reprovadas ({rejectedPieces.length})
+              </p>
+            </div>
+            <div className="space-y-3">
+              {rejectedPieces.map((piece) => {
+                const fmt = FORMAT_COLORS[piece.format] || FORMAT_COLORS.post
+                const isRefacting = refacting === piece.id
+                return (
+                  <div key={piece.id} className="rounded-lg border border-border bg-card/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${fmt.bg} ${fmt.text}`}>
+                            {fmt.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">Dia {piece.day}</span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedPiece(piece)}
+                          className="mt-1 text-left text-sm font-medium hover:text-primary"
+                        >
+                          {piece.title}
+                        </button>
+                        {piece.rejection_reason && (
+                          <p className="mt-1 text-xs text-red-400/80 italic">
+                            &quot;{piece.rejection_reason}&quot;
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => refactPiece(piece.id)}
+                        disabled={isRefacting}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-amber-500 active:scale-[0.98] disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isRefacting ? "animate-spin" : ""}`} />
+                        {isRefacting ? "Refazendo..." : "Refazer"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {refactError && (
+              <div className="mt-3 rounded-lg bg-red-500/10 p-3 text-xs text-red-400">
+                {refactError}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Comentarios Gerais ── */}
         <div className="mt-8 rounded-xl border border-border bg-card/50 p-5">
           <div className="mb-3 flex items-center gap-2">
@@ -528,6 +617,32 @@ export default function CalendarioPage() {
                     >
                       <Paintbrush className="h-4 w-4" /> Criar Visual
                     </Link>
+                  </div>
+                )}
+                {selectedPiece.status === "reprovado" && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl bg-red-500/10 p-4">
+                      <X className="mx-auto h-6 w-6 text-red-400" />
+                      <p className="mt-1 text-center text-sm font-medium text-red-400">Conteudo reprovado</p>
+                      {selectedPiece.rejection_reason && (
+                        <p className="mt-2 text-xs text-red-400/80 italic text-center">
+                          &quot;{selectedPiece.rejection_reason}&quot;
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => refactPiece(selectedPiece.id)}
+                      disabled={refacting === selectedPiece.id}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-amber-500 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${refacting === selectedPiece.id ? "animate-spin" : ""}`} />
+                      {refacting === selectedPiece.id ? "Refazendo com IA..." : "Refazer com IA"}
+                    </button>
+                    {refactError && refacting === null && (
+                      <div className="rounded-lg bg-red-500/10 p-3 text-xs text-red-400">
+                        {refactError}
+                      </div>
+                    )}
                   </div>
                 )}
                 {selectedPiece.status === "em_design" && (
