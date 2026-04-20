@@ -81,7 +81,8 @@ O que fazer:
 
 Diretiva:
 \`\`\`route
-{"action":"produce_content","clientName":"Nome","niche":"nicho","demand":"descricao exata do pedido","monthYear":"2026-05"}
+{"action":"produce_content","clientName":"Nome","niche":"nicho","demand":"descricao exata do pedido","monthYear":"YYYY-MM"}
+REGRA CRITICA para monthYear: Use o proximo mes relativo a DATA ATUAL (fornecida no contexto). Se hoje e abril/2026, monthYear deve ser "2026-05". NUNCA invente datas de anos anteriores. Se o usuario nao especificar mes, use o proximo mes.
 \`\`\`
 
 ### ROTA LIVRE — Chat / Agente Solo

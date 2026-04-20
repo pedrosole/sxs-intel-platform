@@ -10,7 +10,7 @@ import {
 } from "@/lib/agents/orchestrator"
 import { buildHermesContext } from "@/lib/db/operations"
 
-// Vercel: max duration for streaming (Hobby=60s, Pro=300s)
+// Vercel: max duration for streaming
 export const maxDuration = 300
 
 const client = new Anthropic({
@@ -33,10 +33,13 @@ export async function POST(request: Request) {
     async start(controller) {
       try {
         // Phase 0: Build DB context for Hermes
-        let hermesSystem = AGENT_PROMPTS.hermes
+        const today = new Date().toISOString().split("T")[0]
+        const [y, m] = today.split("-")
+        const currentDate = `DATA ATUAL: ${today} (${y}-${m}). Proximo mes: ${parseInt(m) === 12 ? parseInt(y)+1 + "-01" : y + "-" + String(parseInt(m)+1).padStart(2, "0")}`
+        let hermesSystem = `${AGENT_PROMPTS.hermes}\n\n## ${currentDate}`
         try {
           const dbContext = await buildHermesContext()
-          hermesSystem = `${AGENT_PROMPTS.hermes}\n\n---\n\n${dbContext}`
+          hermesSystem = `${AGENT_PROMPTS.hermes}\n\n## ${currentDate}\n\n---\n\n${dbContext}`
         } catch {
           // DB context is non-blocking — Hermes works without it
         }

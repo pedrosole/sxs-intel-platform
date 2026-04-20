@@ -691,15 +691,23 @@ export async function* runProduceContent(
     }
 
     // ── Enrich calendar with @maykon content ──
+    if (step.agentId === "maykon") {
+      console.log("[MAYKON DEBUG] conditions:", { DB_ENABLED, jobId: !!jobId, calendarPiecesLen: calendarPieces.length, lastFailed })
+      console.log("[MAYKON DEBUG] fullResponse length:", fullResponse.length)
+      console.log("[MAYKON DEBUG] fullResponse first 300:", fullResponse.substring(0, 300))
+    }
     if (step.agentId === "maykon" && DB_ENABLED && jobId && calendarPieces.length > 0 && !lastFailed) {
       try {
         const maykonContents = parseMaykonOutput(fullResponse)
+        console.log("[MAYKON DEBUG] parseMaykonOutput result:", maykonContents.length, "pieces")
         if (maykonContents.length > 0) {
+          console.log("[MAYKON DEBUG] first content:", { idx: maykonContents[0].pieceIndex, caption: !!maykonContents[0].caption, script: !!maykonContents[0].script })
           const enriched = enrichPiecesWithContent(calendarPieces, maykonContents)
           const { supabase } = await import("../db/supabase")
+          let updatedCount = 0
           for (const piece of enriched) {
             if (piece.caption || piece.script || piece.cta || piece.notes) {
-              await supabase
+              const { error } = await supabase
                 .from("calendar_pieces")
                 .update({
                   caption: piece.caption,
@@ -709,8 +717,16 @@ export async function* runProduceContent(
                 })
                 .eq("job_id", jobId)
                 .eq("sort_order", piece.sort_order)
+              if (error) console.error("[MAYKON DEBUG] update error:", error)
+              else updatedCount++
             }
           }
+          console.log("[MAYKON DEBUG] updated pieces in DB:", updatedCount)
+        } else {
+          console.log("[MAYKON DEBUG] parseMaykonOutput returned EMPTY — format mismatch")
+          console.log("[MAYKON DEBUG] looking for PECA headers:", fullResponse.match(/PE[CÇ]A\s*\d+/gi))
+          console.log("[MAYKON DEBUG] looking for Roteiro:", fullResponse.match(/Roteiro:/gi))
+          console.log("[MAYKON DEBUG] looking for Legenda:", fullResponse.match(/Legenda:/gi))
         }
       } catch (err) {
         console.error("Maykon content enrichment error (non-blocking):", err)

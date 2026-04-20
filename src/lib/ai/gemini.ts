@@ -107,7 +107,7 @@ Retorne em português brasileiro, formato estruturado:
 3. Perguntas frequentes que as pessoas buscam sobre ${niche}
 4. Tendências dos últimos 3 meses (subindo ou descendo)
 5. Keywords para GEO (otimização para respostas de IA)`,
-    { useSearch: true }
+    { useSearch: false }
   )
 }
 
@@ -122,7 +122,7 @@ Retorne em português brasileiro:
 3. Hashtags mais relevantes e em crescimento
 4. Datas comemorativas/sazonais relevantes para os próximos 2 meses
 5. Gaps de conteúdo (o que o público busca mas poucos produtores cobrem)`,
-    { useSearch: true }
+    { useSearch: false }
   )
 }
 
