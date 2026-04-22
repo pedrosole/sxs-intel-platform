@@ -194,7 +194,7 @@ REGRA: Cada PECA N acima corresponde ao PECA N no seu calendario editorial. A da
 export function parsePieceCount(demand: string): number {
   // procura padroes como "12 pecas", "10 posts", "6 conteudos", "8 reels", etc
   const patterns = [
-    /(\d+)\s*(?:peças?|pecas?|posts?|conteudos?|conteúdos?|reels?|carrossels?|estaticos?|estáticos?|stories)/i,
+    /(\d+)\s*(?:peças?|pecas?|posts?|conteudos?|conteúdos?|reels?|carrossels?|carrosséis?|estaticos?|estáticos?|stories|videos?|vídeos?|roteiros?)/i,
     /(\d+)\s*(?:entregas?|entregaveis?|entregáveis?|entregas?)/i,
   ]
   let total = 0
