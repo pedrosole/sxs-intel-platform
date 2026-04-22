@@ -4,6 +4,7 @@ export type PipelineEvent =
   | { type: "agent_end"; agentId: string; summary: string }
   | { type: "meta_data"; agentId: string; data: IGProfileData }
   | { type: "calendar_link"; token: string; url: string; totalPieces: number }
+  | { type: "pipeline_continue"; jobId: string; nextStep: number; totalSteps: number }
   | { type: "pipeline_end" }
   | { type: "error"; message: string }
 

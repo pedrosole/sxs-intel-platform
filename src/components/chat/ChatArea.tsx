@@ -73,6 +73,108 @@ export function ChatArea() {
     )
   }
 
+  // Process an SSE stream, returns pipeline_continue info if the server asks us to chain
+  async function processSSEStream(
+    response: Response,
+    signal: AbortSignal,
+    currentMsgIdRef: { value: string },
+  ): Promise<{ jobId: string; nextStep: number; totalSteps: number } | null> {
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error("No reader")
+
+    const decoder = new TextDecoder()
+    let buffer = ""
+    let pendingContinue: { jobId: string; nextStep: number; totalSteps: number } | null = null
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue
+        const data = line.slice(6)
+        if (data === "[DONE]") break
+
+        try {
+          const event = JSON.parse(data)
+
+          switch (event.type) {
+            case "text": {
+              const cleanText = event.text
+              if (currentMsgIdRef.value) {
+                appendToMessage(currentMsgIdRef.value, cleanText)
+                scrollToBottom()
+              }
+              break
+            }
+
+            case "agent_start": {
+              setActiveAgentId(event.agentId)
+              setPipelineProgress({ step: event.step, total: event.totalSteps })
+              currentMsgIdRef.value = createAgentMessage(event.agentId)
+              scrollToBottom()
+              break
+            }
+
+            case "agent_end": {
+              break
+            }
+
+            case "meta_data": {
+              break
+            }
+
+            case "calendar_link": {
+              const linkMsgId = createAgentMessage("hermes")
+              appendToMessage(
+                linkMsgId,
+                `Calendario editorial pronto com ${event.totalPieces} pecas.\n\nAcesse o calendario interativo para aprovar ou reprovar cada peca:\n${window.location.origin}${event.url}`
+              )
+              scrollToBottom()
+              break
+            }
+
+            case "pipeline_continue": {
+              pendingContinue = { jobId: event.jobId, nextStep: event.nextStep, totalSteps: event.totalSteps }
+              break
+            }
+
+            case "pipeline_end": {
+              // Only clear progress if no continuation pending
+              if (!pendingContinue) {
+                setPipelineProgress(null)
+                setActiveAgentId(null)
+              }
+              break
+            }
+
+            case "error": {
+              if (currentMsgIdRef.value) {
+                appendToMessage(currentMsgIdRef.value, `\n\n⚠️ ${event.message}`)
+              }
+              break
+            }
+
+            default: {
+              if (event.text && currentMsgIdRef.value) {
+                appendToMessage(currentMsgIdRef.value, event.text)
+                scrollToBottom()
+              }
+            }
+          }
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+
+    return pendingContinue
+  }
+
   async function handleSend() {
     if (!input.trim() || isLoading) return
 
@@ -91,11 +193,9 @@ export function ChatArea() {
     setPipelineProgress(null)
     scrollToBottom()
 
-    // Create first agent message (hermes)
-    let currentMsgId = ""
-    // Small delay to ensure state updates
+    const msgIdRef = { value: "" }
     await new Promise((r) => setTimeout(r, 10))
-    currentMsgId = createAgentMessage("hermes")
+    msgIdRef.value = createAgentMessage("hermes")
 
     try {
       abortRef.current = new AbortController()
@@ -116,102 +216,28 @@ export function ChatArea() {
         throw new Error(errorText || `HTTP ${res.status}`)
       }
 
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error("No reader")
+      // Process initial stream, then auto-chain if pipeline_continue
+      let continueInfo = await processSSEStream(res, abortRef.current.signal, msgIdRef)
 
-      const decoder = new TextDecoder()
-      let buffer = ""
+      while (continueInfo) {
+        const nextRes = await fetch("/api/pipeline/continue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: continueInfo.jobId, step: continueInfo.nextStep }),
+          signal: abortRef.current.signal,
+        })
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue
-          const data = line.slice(6)
-          if (data === "[DONE]") break
-
-          try {
-            const event = JSON.parse(data)
-
-            switch (event.type) {
-              case "text": {
-                // Filter out pipeline directive blocks from display
-                const cleanText = event.text
-                if (event.agentId && event.agentId !== activeAgentId) {
-                  // Switched agent without explicit agent_start (hermes text)
-                }
-                if (currentMsgId) {
-                  appendToMessage(currentMsgId, cleanText)
-                  scrollToBottom()
-                }
-                break
-              }
-
-              case "agent_start": {
-                setActiveAgentId(event.agentId)
-                setPipelineProgress({ step: event.step, total: event.totalSteps })
-                currentMsgId = createAgentMessage(event.agentId)
-                scrollToBottom()
-                break
-              }
-
-              case "agent_end": {
-                // Agent finished - no action needed, next agent_start will create new msg
-                break
-              }
-
-              case "meta_data": {
-                // Instagram data received - could show a card, for now just note it
-                break
-              }
-
-              case "calendar_link": {
-                // Create a special message with the calendar link
-                const linkMsgId = createAgentMessage("hermes")
-                appendToMessage(
-                  linkMsgId,
-                  `Calendario editorial pronto com ${event.totalPieces} pecas.\n\nAcesse o calendario interativo para aprovar ou reprovar cada peca:\n${window.location.origin}${event.url}`
-                )
-                scrollToBottom()
-                break
-              }
-
-              case "pipeline_end": {
-                setPipelineProgress(null)
-                setActiveAgentId(null)
-                break
-              }
-
-              case "error": {
-                if (currentMsgId) {
-                  appendToMessage(currentMsgId, `\n\n⚠️ ${event.message}`)
-                }
-                break
-              }
-
-              default: {
-                // Legacy format (just { text: "..." })
-                if (event.text && currentMsgId) {
-                  appendToMessage(currentMsgId, event.text)
-                  scrollToBottom()
-                }
-              }
-            }
-          } catch {
-            // skip malformed chunks
-          }
+        if (!nextRes.ok) {
+          throw new Error(`Pipeline continue failed: HTTP ${nextRes.status}`)
         }
+
+        continueInfo = await processSSEStream(nextRes, abortRef.current.signal, msgIdRef)
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return
-      if (currentMsgId) {
+      if (msgIdRef.value) {
         appendToMessage(
-          currentMsgId,
+          msgIdRef.value,
           `\n\nErro ao conectar com o Hermes. Verifique se a chave da API esta configurada.\n${err instanceof Error ? err.message : ""}`
         )
       }

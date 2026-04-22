@@ -760,6 +760,13 @@ export async function* runProduceContent(
         console.error("Maykon content enrichment error (non-blocking):", err)
       }
     }
+
+    // ── Split mode: on Vercel, return after each step to avoid 60s timeout ──
+    if (process.env.VERCEL && jobId && stepIndex < totalSteps) {
+      yield { type: "pipeline_continue", jobId, nextStep: stepIndex + 1, totalSteps }
+      yield { type: "pipeline_end" }
+      return
+    }
   }
 
   // Finalize job
@@ -968,6 +975,267 @@ ${request.instagramHandle ? `- Instagram: @${request.instagramHandle}` : ""}`)
     try {
       await completeJob(jobId, "completed")
       await updateClientSummary({ clientId, jobId })
+    } catch { /* non-blocking */ }
+  }
+
+  yield { type: "pipeline_end" }
+}
+
+// ══════════════════════════════════════
+// ETAPA 4b — Continue Step (split mode)
+// ══════════════════════════════════════
+
+const PRODUCTION_STEPS = [
+  { agentId: "rapha", agentName: "Rapha", maxTokens: 6144 },
+  { agentId: "iza", agentName: "Iza", maxTokens: 8192 },
+  { agentId: "maykon", agentName: "Maykon", maxTokens: 8192 },
+  { agentId: "argos", agentName: "Argos", maxTokens: 6144 },
+]
+
+export async function* runContinueStep(
+  jobId: string,
+  stepIndex: number,
+  anthropic: Anthropic,
+): AsyncGenerator<PipelineEvent> {
+  const totalSteps = PRODUCTION_STEPS.length
+  const step = PRODUCTION_STEPS[stepIndex - 1]
+
+  if (!step) {
+    yield { type: "error", message: `Step ${stepIndex} invalido` }
+    yield { type: "pipeline_end" }
+    return
+  }
+
+  if (!DB_ENABLED) {
+    yield { type: "error", message: "Banco de dados nao configurado" }
+    yield { type: "pipeline_end" }
+    return
+  }
+
+  const { supabase } = await import("../db/supabase")
+
+  // Load job + client + briefing
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("client_id, briefing_id")
+    .eq("id", jobId)
+    .single()
+
+  if (!job) {
+    yield { type: "error", message: `Job ${jobId} nao encontrado` }
+    yield { type: "pipeline_end" }
+    return
+  }
+
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("name, niche, instagram_handle")
+    .eq("id", job.client_id)
+    .single()
+
+  const { data: briefing } = await supabase
+    .from("briefings")
+    .select("content, month_year")
+    .eq("id", job.briefing_id)
+    .single()
+
+  const { data: summary } = await supabase
+    .from("client_summaries")
+    .select("brand_voice_summary, positioning_summary")
+    .eq("client_id", job.client_id)
+    .single()
+
+  // Load previous agent outputs for this job
+  const { data: outputs } = await supabase
+    .from("job_outputs")
+    .select("agent_id, content, step_order")
+    .eq("job_id", jobId)
+    .order("step_order")
+
+  const clientName = clientRow?.name || "Cliente"
+  const niche = clientRow?.niche || "geral"
+  const monthYear = briefing?.month_year || getCurrentMonthYear()
+  const demand = (briefing?.content || "").replace(/^Demanda:\s*/i, "")
+
+  // Build context from DB
+  const contextParts: string[] = []
+
+  if (summary) {
+    contextParts.push(`## Core do Cliente\n- Brand voice: ${summary.brand_voice_summary || "N/A"}\n- Posicionamento: ${summary.positioning_summary || "N/A"}`)
+  }
+
+  contextParts.push(`## Demanda de Producao\n- Cliente: ${clientName}\n- Nicho: ${niche}\n- Pedido: ${demand}\n- Mes/Ano: ${monthYear}`)
+
+  // Date distribution
+  try {
+    const [yearStr, monthStr] = monthYear.split("-")
+    const year = parseInt(yearStr, 10)
+    const month = parseInt(monthStr, 10)
+    const pieceCount = parsePieceCount(demand)
+    const slots = distributeDates(year, month, pieceCount)
+    contextParts.push(formatSlotsForPrompt(slots, monthYear))
+  } catch { /* non-blocking */ }
+
+  // Add previous agent outputs as context
+  for (const output of (outputs || [])) {
+    contextParts.push(`## Output @${output.agent_id}\n${output.content}`)
+  }
+
+  // Load skill learnings + cross-client giro for @maykon/@argos
+  let systemPrompt = AGENT_PROMPTS[step.agentId]
+  if (!systemPrompt) {
+    yield { type: "error", message: `Prompt nao encontrado para @${step.agentId}` }
+    yield { type: "pipeline_end" }
+    return
+  }
+
+  if (step.agentId === "maykon" || step.agentId === "argos") {
+    try {
+      const { data: learnings } = await supabase
+        .from("agent_skill_learnings")
+        .select("agent_id, content")
+        .order("created_at")
+      if (learnings && learnings.length > 0) {
+        const block = learnings.map((l: { agent_id: string; content: string }) => `[@${l.agent_id}] ${l.content}`).join("\n\n")
+        systemPrompt += `\n\n---\n\n## SKILL LEARNINGS DO SISTEMA (OBRIGATORIAS)\n\n${block}`
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  if (step.agentId === "maykon") {
+    try {
+      const { data: otherPieces } = await supabase
+        .from("calendar_pieces")
+        .select("title, script")
+        .neq("client_id", job.client_id)
+        .not("script", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(50)
+      if (otherPieces && otherPieces.length > 0) {
+        const giros = otherPieces
+          .filter((p: { script: string | null }) => p.script)
+          .map((p: { title: string; script: string }) => `"${p.title}" — ${(p.script || "").slice(0, 150)}`)
+          .join("\n")
+        systemPrompt += `\n\n---\n\n## GIROS NARRATIVOS DE OUTROS CLIENTES (NAO REPETIR)\n\n${giros.slice(0, 4000)}`
+        systemPrompt += `\n\n## REGRAS DE GIRO IRREPETIVEL\n- Cada peca DEVE ter giro narrativo UNICO\n- NUNCA repita estrutura de hook entre pecas do mesmo calendario\n- Distribua pelo menos 6 estruturas narrativas diferentes\n- 30%+ das pecas devem usar primeira pessoa\n- Headlines PROVOCAM, nao descrevem\n- Nenhum giro pode ser igual ao de outro cliente`
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  // Run the agent
+  yield { type: "agent_start", agentId: step.agentId, agentName: step.agentName, step: stepIndex, totalSteps }
+
+  const userMessage = `${contextParts.join("\n\n---\n\n")}\n\n---\n\nExecute sua funcao conforme suas instrucoes. ${demand}. Seja detalhada, pratica e especifica para o cliente ${clientName} no nicho de ${niche}.`
+
+  let fullResponse = ""
+  let lastFailed = false
+  const startTime = Date.now()
+
+  try {
+    const stream = await anthropic.messages.stream({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: step.maxTokens,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+    })
+
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        fullResponse += event.delta.text
+        yield { type: "text", text: event.delta.text, agentId: step.agentId }
+      }
+    }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Erro desconhecido"
+    yield { type: "error", message: `Erro no @${step.agentId}: ${errorMsg}` }
+    fullResponse = `[ERRO] ${errorMsg}`
+    lastFailed = true
+  }
+
+  const durationMs = Date.now() - startTime
+
+  // Save output
+  try {
+    await saveJobOutput({ jobId, agentId: step.agentId, agentName: step.agentName, stepOrder: stepIndex, content: fullResponse, durationMs })
+    await updateJobProgress(jobId, stepIndex)
+  } catch { /* non-blocking */ }
+
+  yield { type: "agent_end", agentId: step.agentId, summary: fullResponse.slice(0, 200) }
+
+  // ── Calendar bridge: @iza saves pieces to DB ──
+  if (step.agentId === "iza" && !lastFailed) {
+    try {
+      const raphaOutput = (outputs || []).find((o: { agent_id: string }) => o.agent_id === "rapha")?.content || ""
+      let calendarPieces = parseCalendarOutput(raphaOutput, monthYear)
+      if (calendarPieces.length > 0) {
+        calendarPieces = enrichPiecesFromIza(calendarPieces, fullResponse)
+        await saveCalendarToDb(calendarPieces, jobId, job.client_id, monthYear)
+      }
+    } catch (err) {
+      console.error("Calendar save error (continue, non-blocking):", err)
+    }
+  }
+
+  // ── Calendar bridge: @maykon enriches pieces with content ──
+  if (step.agentId === "maykon" && !lastFailed) {
+    try {
+      const maykonContents = parseMaykonOutput(fullResponse)
+      if (maykonContents.length > 0) {
+        const { data: dbPieces } = await supabase
+          .from("calendar_pieces")
+          .select("sort_order, title, format, day, caption, script, cta, notes")
+          .eq("job_id", jobId)
+          .order("sort_order")
+
+        if (dbPieces && dbPieces.length > 0) {
+          const enriched = enrichPiecesWithContent(dbPieces as ParsedPiece[], maykonContents)
+          for (const piece of enriched) {
+            if (piece.caption || piece.script || piece.cta || piece.notes) {
+              await supabase
+                .from("calendar_pieces")
+                .update({ caption: piece.caption, script: piece.script, cta: piece.cta, notes: piece.notes })
+                .eq("job_id", jobId)
+                .eq("sort_order", piece.sort_order)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Maykon enrichment error (continue, non-blocking):", err)
+    }
+  }
+
+  // Next step or finalize
+  if (stepIndex < totalSteps && !lastFailed) {
+    yield { type: "pipeline_continue", jobId, nextStep: stepIndex + 1, totalSteps }
+  } else {
+    // Finalize job
+    try {
+      await completeJob(jobId, lastFailed ? "partial" : "completed")
+      await updateClientSummary({ clientId: job.client_id, jobId })
+    } catch { /* non-blocking */ }
+
+    // Emit calendar link
+    try {
+      const { data: calendarMeta } = await supabase
+        .from("calendar_meta")
+        .select("share_token")
+        .eq("job_id", jobId)
+        .single()
+
+      if (calendarMeta?.share_token) {
+        const { data: pieces } = await supabase
+          .from("calendar_pieces")
+          .select("id")
+          .eq("job_id", jobId)
+
+        yield {
+          type: "calendar_link",
+          token: calendarMeta.share_token,
+          url: `/calendario/${calendarMeta.share_token}`,
+          totalPieces: pieces?.length || 0,
+        }
+      }
     } catch { /* non-blocking */ }
   }
 
