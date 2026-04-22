@@ -605,16 +605,60 @@ export async function* runProduceContent(
 
   let lastFailed = false
 
+  // ── Pre-load skill learnings + cross-client giro (once) ──
+  let learningsBlock = ""
+  let crossClientGiros = ""
+  if (DB_ENABLED) {
+    try {
+      const { supabase } = await import("../db/supabase")
+      const { data: learnings } = await supabase
+        .from("agent_skill_learnings")
+        .select("agent_id, content")
+        .order("created_at")
+      if (learnings && learnings.length > 0) {
+        learningsBlock = learnings.map((l: { agent_id: string; content: string }) => `[@${l.agent_id}] ${l.content}`).join("\n\n")
+      }
+
+      if (clientId) {
+        const { data: otherPieces } = await supabase
+          .from("calendar_pieces")
+          .select("title, script")
+          .neq("client_id", clientId)
+          .not("script", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(50)
+        if (otherPieces && otherPieces.length > 0) {
+          crossClientGiros = otherPieces
+            .filter((p: { script: string | null }) => p.script)
+            .map((p: { title: string; script: string }) => `"${p.title}" — ${(p.script || "").slice(0, 150)}`)
+            .join("\n")
+        }
+      }
+    } catch { /* non-blocking */ }
+  }
+
   for (const step of productionSteps) {
     stepIndex++
     const startTime = Date.now()
 
     yield { type: "agent_start", agentId: step.agentId, agentName: step.agentName, step: stepIndex, totalSteps }
 
-    const systemPrompt = AGENT_PROMPTS[step.agentId]
+    // Keepalive ping — prevents Vercel idle timeout between agents
+    yield { type: "text", text: " ", agentId: step.agentId }
+
+    let systemPrompt = AGENT_PROMPTS[step.agentId]
     if (!systemPrompt) {
       yield { type: "error", message: `Prompt nao encontrado para @${step.agentId}` }
       continue
+    }
+
+    // Inject skill learnings + cross-client giro into @maykon and @argos prompts
+    if ((step.agentId === "maykon" || step.agentId === "argos") && learningsBlock) {
+      systemPrompt += `\n\n---\n\n## SKILL LEARNINGS DO SISTEMA (OBRIGATORIAS)\n\n${learningsBlock}`
+    }
+    if (step.agentId === "maykon" && crossClientGiros) {
+      systemPrompt += `\n\n---\n\n## GIROS NARRATIVOS DE OUTROS CLIENTES (NAO REPETIR)\n\n${crossClientGiros.slice(0, 4000)}`
+      systemPrompt += `\n\n## REGRAS DE GIRO IRREPETIVEL\n- Cada peca DEVE ter giro narrativo UNICO\n- NUNCA repita estrutura de hook entre pecas do mesmo calendario\n- Distribua pelo menos 6 estruturas narrativas diferentes\n- 30%+ das pecas devem usar primeira pessoa\n- Headlines PROVOCAM, nao descrevem\n- Nenhum giro pode ser igual ao de outro cliente`
     }
 
     const userMessage = `${contextParts.join("\n\n---\n\n")}\n\n---\n\nExecute sua funcao conforme suas instrucoes. Demanda: ${request.demand}. Seja detalhada, pratica e especifica para o cliente ${request.clientName} no nicho de ${request.niche}.`
@@ -691,23 +735,15 @@ export async function* runProduceContent(
     }
 
     // ── Enrich calendar with @maykon content ──
-    if (step.agentId === "maykon") {
-      console.log("[MAYKON DEBUG] conditions:", { DB_ENABLED, jobId: !!jobId, calendarPiecesLen: calendarPieces.length, lastFailed })
-      console.log("[MAYKON DEBUG] fullResponse length:", fullResponse.length)
-      console.log("[MAYKON DEBUG] fullResponse first 300:", fullResponse.substring(0, 300))
-    }
     if (step.agentId === "maykon" && DB_ENABLED && jobId && calendarPieces.length > 0 && !lastFailed) {
       try {
         const maykonContents = parseMaykonOutput(fullResponse)
-        console.log("[MAYKON DEBUG] parseMaykonOutput result:", maykonContents.length, "pieces")
         if (maykonContents.length > 0) {
-          console.log("[MAYKON DEBUG] first content:", { idx: maykonContents[0].pieceIndex, caption: !!maykonContents[0].caption, script: !!maykonContents[0].script })
           const enriched = enrichPiecesWithContent(calendarPieces, maykonContents)
           const { supabase } = await import("../db/supabase")
-          let updatedCount = 0
           for (const piece of enriched) {
             if (piece.caption || piece.script || piece.cta || piece.notes) {
-              const { error } = await supabase
+              await supabase
                 .from("calendar_pieces")
                 .update({
                   caption: piece.caption,
@@ -717,16 +753,8 @@ export async function* runProduceContent(
                 })
                 .eq("job_id", jobId)
                 .eq("sort_order", piece.sort_order)
-              if (error) console.error("[MAYKON DEBUG] update error:", error)
-              else updatedCount++
             }
           }
-          console.log("[MAYKON DEBUG] updated pieces in DB:", updatedCount)
-        } else {
-          console.log("[MAYKON DEBUG] parseMaykonOutput returned EMPTY — format mismatch")
-          console.log("[MAYKON DEBUG] looking for PECA headers:", fullResponse.match(/PE[CÇ]A\s*\d+/gi))
-          console.log("[MAYKON DEBUG] looking for Roteiro:", fullResponse.match(/Roteiro:/gi))
-          console.log("[MAYKON DEBUG] looking for Legenda:", fullResponse.match(/Legenda:/gi))
         }
       } catch (err) {
         console.error("Maykon content enrichment error (non-blocking):", err)
