@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
-import { Send, Loader2 } from "lucide-react"
+import { useState, useRef, useCallback, useEffect } from "react"
+import { Send, Loader2, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { agents } from "@/data/agents"
@@ -17,26 +17,58 @@ const AGENT_ICONS: Record<string, string> = {
   maykon: "✍️",
   argos: "🔎",
   jarbas: "📈",
+  leo: "🎨",
 }
 
-const welcomeMessage: Message = {
-  id: "msg-welcome",
-  role: "assistant",
-  content:
-    "Ola! Sou o Hermes, orquestrador do SXS Intel.\n\nPara comecar, me diga com qual cliente vamos trabalhar hoje. Se for novo, envie o nome e o nicho. Se ja esta cadastrado, eu mostro o status e sigo o fluxo.",
-  agentId: "hermes",
-  agentName: "Hermes",
-  timestamp: new Date().toISOString(),
+const DIRECT_AGENTS = agents.filter((a) => a.id !== "hermes")
+
+function getWelcomeMessage(agentId: string | null): Message {
+  if (!agentId) {
+    return {
+      id: "msg-welcome",
+      role: "assistant",
+      content:
+        "Ola! Sou o Hermes, orquestrador do SXS Intel.\n\nPara comecar, me diga com qual cliente vamos trabalhar hoje. Se for novo, envie o nome e o nicho. Se ja esta cadastrado, eu mostro o status e sigo o fluxo.",
+      agentId: "hermes",
+      agentName: "Hermes",
+      timestamp: new Date().toISOString(),
+    }
+  }
+  const agent = agents.find((a) => a.id === agentId)
+  return {
+    id: "msg-welcome",
+    role: "assistant",
+    content: `Ola! Sou ${agent?.icon || ""} @${agent?.name || agentId} — ${agent?.role || ""}.\n\nVoce esta no modo direto. Pode conversar comigo sem passar pelo pipeline. Como posso ajudar?`,
+    agentId,
+    agentName: agent?.name || agentId,
+    timestamp: new Date().toISOString(),
+  }
 }
 
 export function ChatArea() {
-  const [messages, setMessages] = useState<Message[]>([welcomeMessage])
+  const [messages, setMessages] = useState<Message[]>([getWelcomeMessage(null)])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
   const [pipelineProgress, setPipelineProgress] = useState<{ step: number; total: number } | null>(null)
+  const [directAgent, setDirectAgent] = useState<string | null>(null)
+  const [showAgentPicker, setShowAgentPicker] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const currentMsgIdRef = useRef<string | null>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Close agent picker on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowAgentPicker(false)
+      }
+    }
+    if (showAgentPicker) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [showAgentPicker])
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -188,14 +220,15 @@ export function ChatArea() {
     const updatedMessages = [...messages, userMsg]
     setMessages(updatedMessages)
     setInput("")
+    const targetAgent = directAgent || "hermes"
     setIsLoading(true)
-    setActiveAgentId("hermes")
+    setActiveAgentId(targetAgent)
     setPipelineProgress(null)
     scrollToBottom()
 
     const msgIdRef = { value: "" }
     await new Promise((r) => setTimeout(r, 10))
-    msgIdRef.value = createAgentMessage("hermes")
+    msgIdRef.value = createAgentMessage(targetAgent)
 
     try {
       abortRef.current = new AbortController()
@@ -204,41 +237,58 @@ export function ChatArea() {
         .filter((m) => m.id !== "msg-welcome")
         .map((m) => ({ role: m.role, content: m.content }))
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
-        signal: abortRef.current.signal,
-      })
-
-      if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(errorText || `HTTP ${res.status}`)
-      }
-
-      // Process initial stream, then auto-chain if pipeline_continue
-      let continueInfo = await processSSEStream(res, abortRef.current.signal, msgIdRef)
-
-      while (continueInfo) {
-        const nextRes = await fetch("/api/pipeline/continue", {
+      if (directAgent) {
+        // Direct mode — talk to a single agent
+        const res = await fetch("/api/chat/direct", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId: continueInfo.jobId, step: continueInfo.nextStep }),
+          body: JSON.stringify({ messages: apiMessages, agentId: directAgent }),
           signal: abortRef.current.signal,
         })
 
-        if (!nextRes.ok) {
-          throw new Error(`Pipeline continue failed: HTTP ${nextRes.status}`)
+        if (!res.ok) {
+          const errorText = await res.text()
+          throw new Error(errorText || `HTTP ${res.status}`)
         }
 
-        continueInfo = await processSSEStream(nextRes, abortRef.current.signal, msgIdRef)
+        await processSSEStream(res, abortRef.current.signal, msgIdRef)
+      } else {
+        // Pipeline mode — Hermes orchestrates
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: apiMessages }),
+          signal: abortRef.current.signal,
+        })
+
+        if (!res.ok) {
+          const errorText = await res.text()
+          throw new Error(errorText || `HTTP ${res.status}`)
+        }
+
+        let continueInfo = await processSSEStream(res, abortRef.current.signal, msgIdRef)
+
+        while (continueInfo) {
+          const nextRes = await fetch("/api/pipeline/continue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId: continueInfo.jobId, step: continueInfo.nextStep }),
+            signal: abortRef.current.signal,
+          })
+
+          if (!nextRes.ok) {
+            throw new Error(`Pipeline continue failed: HTTP ${nextRes.status}`)
+          }
+
+          continueInfo = await processSSEStream(nextRes, abortRef.current.signal, msgIdRef)
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return
       if (msgIdRef.value) {
         appendToMessage(
           msgIdRef.value,
-          `\n\nErro ao conectar com o Hermes. Verifique se a chave da API esta configurada.\n${err instanceof Error ? err.message : ""}`
+          `\n\nErro ao conectar com @${targetAgent}. Verifique se a chave da API esta configurada.\n${err instanceof Error ? err.message : ""}`
         )
       }
     } finally {
@@ -345,9 +395,6 @@ export function ChatArea() {
       <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
         <div className="mx-auto max-w-3xl">
           <div className="mb-2 flex items-center gap-2 flex-wrap">
-            <span className="text-muted-foreground" style={{ fontSize: "var(--font-micro)" }}>
-              {isLoading && activeAgentId ? "Agente ativo:" : "Agentes:"}
-            </span>
             {isLoading && activeAgentId ? (
               <span
                 className="inline-flex items-center gap-1 rounded-md bg-primary/20 px-2 py-0.5 text-primary"
@@ -357,12 +404,74 @@ export function ChatArea() {
                 {AGENT_ICONS[activeAgentId]} @{activeAgentId}
               </span>
             ) : (
-              <span
-                className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-muted-foreground"
-                style={{ fontSize: "var(--font-caption)" }}
-              >
-                {AGENT_ICONS.hermes} @hermes
-              </span>
+              <div className="relative" ref={pickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowAgentPicker(!showAgentPicker)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/50 px-2.5 py-1 text-foreground transition-colors hover:bg-muted"
+                  style={{ fontSize: "var(--font-caption)" }}
+                >
+                  {directAgent ? (
+                    <>
+                      {AGENT_ICONS[directAgent]} @{agents.find((a) => a.id === directAgent)?.name || directAgent}
+                      <span className="text-muted-foreground">· direto</span>
+                    </>
+                  ) : (
+                    <>
+                      {AGENT_ICONS.hermes} @Hermes
+                      <span className="text-muted-foreground">· pipeline</span>
+                    </>
+                  )}
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+
+                {showAgentPicker && (
+                  <div className="absolute bottom-full left-0 mb-1 z-50 w-64 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDirectAgent(null)
+                        setMessages([getWelcomeMessage(null)])
+                        setShowAgentPicker(false)
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted ${
+                        !directAgent ? "bg-primary/10 text-primary" : "text-foreground"
+                      }`}
+                      style={{ fontSize: "var(--font-caption)" }}
+                    >
+                      <span>{AGENT_ICONS.hermes}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">@Hermes</span>
+                        <span className="ml-1.5 text-muted-foreground">Pipeline completo</span>
+                      </div>
+                    </button>
+                    <div className="border-t border-border" />
+                    <div className="max-h-48 overflow-y-auto">
+                      {DIRECT_AGENTS.map((agent) => (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => {
+                            setDirectAgent(agent.id)
+                            setMessages([getWelcomeMessage(agent.id)])
+                            setShowAgentPicker(false)
+                          }}
+                          className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted ${
+                            directAgent === agent.id ? "bg-primary/10 text-primary" : "text-foreground"
+                          }`}
+                          style={{ fontSize: "var(--font-caption)" }}
+                        >
+                          <span>{agent.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">@{agent.name}</span>
+                            <span className="ml-1.5 text-muted-foreground truncate">{agent.role}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="flex gap-2">
