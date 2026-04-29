@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server"
 // Routes that DON'T require API key auth
 const PUBLIC_ROUTES = [
   "/api/calendario/", // calendar share links use their own token
-  "/api/debug-env",   // TEMPORARY — remove after fixing auth
 ]
 
 // Routes with stricter rate limiting (AI calls = expensive)
