@@ -14,6 +14,10 @@ import {
   RefreshCw,
   Download,
   FolderOpen,
+  Upload,
+  Link2,
+  X,
+  Eye,
 } from "lucide-react"
 import { SIZE_PRESETS, DEFAULT_SIZE, getPreset } from "@/lib/design/size-presets"
 import type { SizePreset } from "@/lib/design/size-presets"
@@ -45,6 +49,14 @@ export default function DesignStudioPage() {
   const [bgImagePath, setBgImagePath] = useState<string | null>(null)
   const [bgImageUrl, setBgImageUrl] = useState<string | null>(null)
   const [generatingBg, setGeneratingBg] = useState(false)
+
+  // Reference
+  const [refImageUrl, setRefImageUrl] = useState<string | null>(null)
+  const [refUploading, setRefUploading] = useState(false)
+  const [refUrlInput, setRefUrlInput] = useState("")
+  const [refMode, setRefMode] = useState<"upload" | "url">("upload")
+  const [refKeep, setRefKeep] = useState<Set<string>>(new Set(["layout", "cores"]))
+  const [refNotes, setRefNotes] = useState("")
 
   // Preview & Export
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
@@ -80,6 +92,74 @@ export default function DesignStudioPage() {
     }
     load()
   }, [])
+
+  const KEEP_OPTIONS = [
+    { id: "layout", label: "Layout" },
+    { id: "cores", label: "Cores" },
+    { id: "tipografia", label: "Tipografia" },
+    { id: "estilo", label: "Estilo visual" },
+    { id: "composicao", label: "Composicao" },
+    { id: "espacamento", label: "Espacamento" },
+  ]
+
+  function toggleKeep(id: string) {
+    setRefKeep((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Upload reference image
+  async function uploadReference(file: File) {
+    setRefUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch("/api/design/reference", { method: "POST", body: formData })
+      if (!res.ok) {
+        const err = await res.json()
+        showToast(`Erro: ${err.error}`)
+        return
+      }
+
+      const data = await res.json()
+      setRefImageUrl(data.imageUrl)
+      showToast("Referencia carregada!")
+    } catch {
+      showToast("Erro ao enviar referencia")
+    } finally {
+      setRefUploading(false)
+    }
+  }
+
+  // Set reference from URL
+  async function setReferenceUrl() {
+    if (!refUrlInput.trim()) return
+    setRefUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("url", refUrlInput.trim())
+
+      const res = await fetch("/api/design/reference", { method: "POST", body: formData })
+      if (!res.ok) {
+        const err = await res.json()
+        showToast(`Erro: ${err.error}`)
+        return
+      }
+
+      const data = await res.json()
+      setRefImageUrl(data.imageUrl)
+      setRefUrlInput("")
+      showToast("Referencia carregada!")
+    } catch {
+      showToast("Erro ao carregar referencia")
+    } finally {
+      setRefUploading(false)
+    }
+  }
 
   // Generate background
   async function generateBg() {
@@ -254,6 +334,118 @@ export default function DesignStudioPage() {
                 </div>
               </div>
 
+              {/* Reference */}
+              <div className="glass-card rounded-xl p-4 space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Eye className="h-4 w-4" /> Referencia Visual
+                </h4>
+                <p className="text-[10px] text-muted-foreground">
+                  Envie uma peca de exemplo. O Leo assimila o design e voce define o que manter.
+                </p>
+
+                {/* Upload / URL toggle */}
+                <div className="flex gap-1 rounded-lg bg-muted p-0.5">
+                  <button
+                    onClick={() => setRefMode("upload")}
+                    className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                      refMode === "upload" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Upload className="h-3 w-3" /> Upload
+                  </button>
+                  <button
+                    onClick={() => setRefMode("url")}
+                    className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                      refMode === "url" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Link2 className="h-3 w-3" /> URL
+                  </button>
+                </div>
+
+                {refMode === "upload" ? (
+                  <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-6 cursor-pointer hover:border-primary/30 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) uploadReference(file)
+                      }}
+                    />
+                    {refUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Clique ou arraste uma imagem</span>
+                      </>
+                    )}
+                  </label>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={refUrlInput}
+                      onChange={(e) => setRefUrlInput(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                      onKeyDown={(e) => e.key === "Enter" && setReferenceUrl()}
+                    />
+                    <Button size="sm" onClick={setReferenceUrl} disabled={refUploading || !refUrlInput.trim()}>
+                      {refUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "OK"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Preview reference */}
+                {refImageUrl && (
+                  <div className="relative">
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      <img src={refImageUrl} alt="Referencia" className="w-full max-h-48 object-contain bg-black/5" />
+                    </div>
+                    <button
+                      onClick={() => setRefImageUrl(null)}
+                      className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* What to keep */}
+                {refImageUrl && (
+                  <>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block mb-1.5">O que manter do exemplo:</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {KEEP_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            onClick={() => toggleKeep(opt.id)}
+                            className={`text-[11px] rounded-md px-2.5 py-1 transition-colors border ${
+                              refKeep.has(opt.id)
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <textarea
+                      value={refNotes}
+                      onChange={(e) => setRefNotes(e.target.value)}
+                      placeholder="Notas — ex: manter o gradiente de fundo, usar a mesma hierarquia de texto..."
+                      rows={2}
+                      className="w-full rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  </>
+                )}
+              </div>
+
               {/* Size preset */}
               <div className="glass-card rounded-xl p-4 space-y-3">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -393,21 +585,81 @@ export default function DesignStudioPage() {
                 <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
                   <Palette className="h-8 w-8 mb-3 opacity-30" />
                   <p className="text-sm">Preencha o conteudo e gere o preview</p>
+                  {refImageUrl && (
+                    <div className="mt-6 w-full max-w-sm">
+                      <p className="text-[10px] text-muted-foreground mb-2 text-center">Referencia carregada</p>
+                      <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+                        <img src={refImageUrl} alt="Referencia" className="w-full object-contain bg-black/5" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-foreground">Preview</h4>
-                  <div
-                    className="mx-auto rounded-xl overflow-hidden border border-border shadow-lg"
-                    style={{ width: activePreset.width, height: activePreset.height }}
-                  >
-                    <iframe
-                      srcDoc={previewHtml}
-                      sandbox="allow-same-origin"
-                      style={{ width: activePreset.width, height: activePreset.height, border: "none" }}
-                      title="Design Preview"
-                    />
-                  </div>
+                  {/* Side by side: reference + preview */}
+                  {refImageUrl ? (
+                    <>
+                      <div className="flex items-start gap-4 justify-center flex-wrap">
+                        <div className="space-y-1">
+                          <h4 className="text-[10px] font-semibold text-muted-foreground text-center uppercase tracking-wider">Referencia</h4>
+                          <div
+                            className="rounded-xl overflow-hidden border border-border shadow-sm bg-black/5"
+                            style={{ width: Math.min(activePreset.width * 0.7, 300), height: Math.min(activePreset.height * 0.7, 400) }}
+                          >
+                            <img
+                              src={refImageUrl}
+                              alt="Referencia"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-[10px] font-semibold text-primary text-center uppercase tracking-wider">Seu design</h4>
+                          <div
+                            className="rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg"
+                            style={{ width: Math.min(activePreset.width * 0.7, 300), height: Math.min(activePreset.height * 0.7, 400) }}
+                          >
+                            <iframe
+                              srcDoc={previewHtml}
+                              sandbox="allow-same-origin"
+                              style={{
+                                width: activePreset.width,
+                                height: activePreset.height,
+                                border: "none",
+                                transform: `scale(${Math.min(300 / activePreset.width, 400 / activePreset.height) * 0.7})`,
+                                transformOrigin: "top left",
+                              }}
+                              title="Design Preview"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {refKeep.size > 0 && (
+                        <div className="flex justify-center gap-1.5 flex-wrap">
+                          {Array.from(refKeep).map((k) => (
+                            <span key={k} className="text-[10px] rounded bg-primary/10 text-primary px-2 py-0.5">
+                              {KEEP_OPTIONS.find((o) => o.id === k)?.label || k}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="text-sm font-semibold text-foreground">Preview</h4>
+                      <div
+                        className="mx-auto rounded-xl overflow-hidden border border-border shadow-lg"
+                        style={{ width: activePreset.width, height: activePreset.height }}
+                      >
+                        <iframe
+                          srcDoc={previewHtml}
+                          sandbox="allow-same-origin"
+                          style={{ width: activePreset.width, height: activePreset.height, border: "none" }}
+                          title="Design Preview"
+                        />
+                      </div>
+                    </>
+                  )}
                   <p className="text-center text-[10px] text-muted-foreground">
                     Preview {activePreset.width}×{activePreset.height} → Export {activePreset.exportWidth}×{activePreset.exportHeight}
                   </p>
