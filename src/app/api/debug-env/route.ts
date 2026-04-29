@@ -9,6 +9,6 @@ export async function GET() {
     keyLast4: key.substring(key.length - 4),
     hasNewline: key.includes("\n"),
     hasSpace: key.includes(" "),
-    runtime: typeof EdgeRuntime !== "undefined" ? "edge" : "node",
+    runtime: "node",
   })
 }
