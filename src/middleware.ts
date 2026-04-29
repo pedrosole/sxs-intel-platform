@@ -56,7 +56,7 @@ export function middleware(request: NextRequest) {
   }
 
   // API key authentication — read at runtime so Vercel Edge picks up the env var
-  const apiKey = process.env.SXS_API_KEY || ""
+  const apiKey = (process.env.SXS_API_KEY || "").trim()
   if (apiKey) {
     const authHeader = request.headers.get("authorization")
     const apiKeyHeader = request.headers.get("x-api-key")
