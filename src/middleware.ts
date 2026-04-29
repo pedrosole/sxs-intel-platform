@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-const API_KEY = process.env.SXS_API_KEY || ""
-
 // Routes that DON'T require API key auth
 const PUBLIC_ROUTES = [
   "/api/calendario/", // calendar share links use their own token
@@ -56,13 +54,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // API key authentication
-  if (API_KEY) {
+  // API key authentication — read at runtime so Vercel Edge picks up the env var
+  const apiKey = process.env.SXS_API_KEY || ""
+  if (apiKey) {
     const authHeader = request.headers.get("authorization")
     const apiKeyHeader = request.headers.get("x-api-key")
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : apiKeyHeader
 
-    if (!token || token !== API_KEY) {
+    if (!token || token !== apiKey) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: { "WWW-Authenticate": "Bearer" } }
