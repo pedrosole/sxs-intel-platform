@@ -1,12 +1,13 @@
 import { chromium } from "playwright-core"
 import { supabase } from "@/lib/db/supabase"
+import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { designPieceId } = body as { designPieceId: string }
+  const { designPieceId, sizePreset: sizePresetId } = body as { designPieceId: string; sizePreset?: string }
 
   if (!designPieceId) {
     return Response.json({ error: "designPieceId obrigatorio" }, { status: 400 })
@@ -43,9 +44,11 @@ export async function POST(request: Request) {
       headless: true,
     })
 
+    const preset = getPreset(sizePresetId || "feed")
+
     const page = await browser.newPage({
-      viewport: { width: 420, height: 525 },
-      deviceScaleFactor: 2.5714, // 420 * 2.5714 ≈ 1080, 525 * 2.5714 ≈ 1350
+      viewport: { width: preset.width, height: preset.height },
+      deviceScaleFactor: preset.scaleFactor,
     })
 
     // Load HTML content
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
     // Take screenshot
     const pngBuffer = await page.screenshot({
       type: "png",
-      clip: { x: 0, y: 0, width: 420, height: 525 },
+      clip: { x: 0, y: 0, width: preset.width, height: preset.height },
     })
 
     await browser.close()
@@ -112,7 +115,8 @@ export async function POST(request: Request) {
       exportPath,
       url: publicUrl,
       size: pngBuffer.length,
-      dimensions: { width: 1080, height: 1350 },
+      dimensions: { width: preset.exportWidth, height: preset.exportHeight },
+      sizePreset: preset.id,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido"

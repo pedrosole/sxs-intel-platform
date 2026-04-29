@@ -12,6 +12,7 @@ import {
   Menu,
   BarChart3,
   Zap,
+  Palette,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -22,6 +23,7 @@ const menuItems = [
   { label: "Equipe", icon: Users, path: "/equipe" },
   { label: "Clientes", icon: FolderOpen, path: "/clientes" },
   { label: "Pipeline", icon: Zap, path: "/pipeline" },
+  { label: "Design Studio", icon: Palette, path: "/design" },
 ]
 
 const adminItems = [

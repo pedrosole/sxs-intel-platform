@@ -17,7 +17,10 @@ import {
   MessageSquare,
   Download,
   FileDown,
+  RectangleHorizontal,
 } from "lucide-react"
+import { SIZE_PRESETS, DEFAULT_SIZE, getPreset } from "@/lib/design/size-presets"
+import type { SizePreset } from "@/lib/design/size-presets"
 
 // ── Types ──
 
@@ -105,8 +108,11 @@ export default function DesignStudioPage() {
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportUrl, setExportUrl] = useState<string | null>(null)
+  const [exportDimensions, setExportDimensions] = useState<{ width: number; height: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [fontBadge, setFontBadge] = useState("")
+  const [sizePreset, setSizePreset] = useState<string>(DEFAULT_SIZE)
+  const [activePreset, setActivePreset] = useState<SizePreset>(getPreset(DEFAULT_SIZE))
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -165,6 +171,9 @@ export default function DesignStudioPage() {
     setFeedback("")
     setLogoVariant("auto")
     setExportUrl(null)
+    setExportDimensions(null)
+    setSizePreset(DEFAULT_SIZE)
+    setActivePreset(getPreset(DEFAULT_SIZE))
 
     // Check if design piece exists
     const dp = designPieces[piece.id]
@@ -226,6 +235,7 @@ export default function DesignStudioPage() {
           clientSlug: slug,
           bgImagePath: bgImagePath || undefined,
           logoVariant: logoVariant !== "auto" ? logoVariant : undefined,
+          sizePreset,
         }),
       })
 
@@ -238,6 +248,7 @@ export default function DesignStudioPage() {
       const data = await res.json()
       setPreviewHtml(data.html)
       setFontBadge(data.fontBadge || "")
+      if (data.sizePreset) setActivePreset(data.sizePreset)
 
       // Update local design pieces state
       setDesignPieces((prev) => ({
@@ -304,7 +315,7 @@ export default function DesignStudioPage() {
       const res = await fetch("/api/design/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ designPieceId: dp.id }),
+        body: JSON.stringify({ designPieceId: dp.id, sizePreset }),
       })
 
       if (!res.ok) {
@@ -315,6 +326,7 @@ export default function DesignStudioPage() {
 
       const data = await res.json()
       setExportUrl(data.url)
+      setExportDimensions(data.dimensions || null)
 
       // Update local state
       setPieces((prev) =>
@@ -496,6 +508,36 @@ export default function DesignStudioPage() {
                     </div>
                   )}
 
+                  {/* Size preset */}
+                  <div className="glass-card rounded-xl p-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <RectangleHorizontal className="h-4 w-4" /> Tamanho
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SIZE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => {
+                            setSizePreset(preset.id)
+                            setActivePreset(preset)
+                            setPreviewHtml(null)
+                            setExportUrl(null)
+                          }}
+                          className={`text-left rounded-lg px-3 py-2 transition-colors border ${
+                            sizePreset === preset.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:border-border/80"
+                          }`}
+                        >
+                          <span className="text-xs font-medium block">{preset.label}</span>
+                          <span className="text-[10px] opacity-70">
+                            {preset.exportWidth}×{preset.exportHeight} · {preset.ratio}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Font info */}
                   {fontBadge && (
                     <div className="glass-card rounded-xl p-4">
@@ -528,14 +570,20 @@ export default function DesignStudioPage() {
                   {previewHtml && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-foreground">Preview</h4>
-                      <div className="mx-auto rounded-xl overflow-hidden border border-border shadow-lg" style={{ width: 420, height: 525 }}>
+                      <div
+                        className="mx-auto rounded-xl overflow-hidden border border-border shadow-lg"
+                        style={{ width: activePreset.width, height: activePreset.height }}
+                      >
                         <iframe
                           srcDoc={previewHtml}
                           sandbox="allow-same-origin"
-                          style={{ width: 420, height: 525, border: "none" }}
+                          style={{ width: activePreset.width, height: activePreset.height, border: "none" }}
                           title="Design Preview"
                         />
                       </div>
+                      <p className="text-center text-[10px] text-muted-foreground mt-1">
+                        Preview {activePreset.width}×{activePreset.height} → Export {activePreset.exportWidth}×{activePreset.exportHeight}
+                      </p>
 
                       {/* Feedback */}
                       <div className="glass-card rounded-xl p-4 space-y-3">
@@ -599,7 +647,7 @@ export default function DesignStudioPage() {
                           download
                           className="flex items-center justify-center gap-2 w-full rounded-lg bg-green-500/10 px-4 py-3 text-sm font-medium text-green-500 hover:bg-green-500/20 transition-colors"
                         >
-                          <Download className="h-4 w-4" /> Download PNG (1080×1350)
+                          <Download className="h-4 w-4" /> Download PNG ({exportDimensions ? `${exportDimensions.width}×${exportDimensions.height}` : `${activePreset.exportWidth}×${activePreset.exportHeight}`})
                         </a>
                       )}
                     </div>

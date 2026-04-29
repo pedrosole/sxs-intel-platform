@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/db/supabase"
 import { listClientAssets } from "@/lib/db/operations"
+import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -15,11 +16,12 @@ async function storageToBase64(bucket: string, path: string): Promise<string | n
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { calendarPieceId, clientSlug, bgImagePath, logoVariant } = body as {
+  const { calendarPieceId, clientSlug, bgImagePath, logoVariant, sizePreset: sizePresetId } = body as {
     calendarPieceId: string
     clientSlug: string
     bgImagePath?: string
     logoVariant?: string
+    sizePreset?: string
   }
 
   if (!calendarPieceId || !clientSlug) {
@@ -155,6 +157,9 @@ export async function POST(request: Request) {
     if (c.role === "accent" && hex) accentColor = hex
   }
 
+  // ── Size preset ──
+  const preset = getPreset(sizePresetId || "feed")
+
   // ── Build HTML ──
   const title = (p.title as string) || "Sem titulo"
   const caption = (p.caption as string) || ""
@@ -170,13 +175,13 @@ export async function POST(request: Request) {
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=420">
+<meta name="viewport" content="width=${preset.width}">
 <style>
 ${fontFaces}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  width: 420px;
-  height: 525px;
+  width: ${preset.width}px;
+  height: ${preset.height}px;
   position: relative;
   overflow: hidden;
   font-family: ${bodyFont};
@@ -216,16 +221,16 @@ body {
 }
 h1 {
   font-family: ${headingFont};
-  font-size: 26px;
+  font-size: ${preset.id === "landscape" ? 22 : preset.id === "stories" ? 30 : 26}px;
   font-weight: 700;
   line-height: 1.2;
   text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .body-text {
-  font-size: 14px;
+  font-size: ${preset.id === "landscape" ? 12 : 14}px;
   line-height: 1.5;
   opacity: 0.9;
-  max-height: 160px;
+  max-height: ${preset.id === "stories" ? 280 : preset.id === "landscape" ? 80 : 160}px;
   overflow: hidden;
 }
 .cta-box {
@@ -321,6 +326,7 @@ h1 {
     html,
     logoVariant: selectedLogoVariant,
     fontBadge,
+    sizePreset: preset,
   })
 }
 
