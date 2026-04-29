@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Eye, X, Upload, Plus, Sparkles, BookOpen, Send, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { apiFetch } from "@/lib/api-client"
 import type { Agent, AgentSkill } from "@/types"
 
 interface DbLearning {
@@ -36,7 +37,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   useEffect(() => {
     if (!hasSkills) return
     setLoadingLearnings(true)
-    fetch(`/api/agents/${agent.id}/learnings`)
+    apiFetch(`/api/agents/${agent.id}/learnings`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setLearnings(data)
@@ -55,7 +56,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
     setSaving(true)
     try {
-      const res = await fetch(`/api/agents/${agent.id}/learnings`, {
+      const res = await apiFetch(`/api/agents/${agent.id}/learnings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ skillId, content: text }),
@@ -77,7 +78,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
   async function removeLearning(learningId: string) {
     try {
-      await fetch(`/api/agents/${agent.id}/learnings?id=${learningId}`, {
+      await apiFetch(`/api/agents/${agent.id}/learnings?id=${learningId}`, {
         method: "DELETE",
       })
       setLearnings((prev) => prev.filter((l) => l.id !== learningId))

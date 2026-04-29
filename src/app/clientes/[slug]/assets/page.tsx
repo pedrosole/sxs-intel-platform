@@ -19,6 +19,7 @@ import {
   Plus,
   X,
 } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
 
 // ── Types ──
 
@@ -133,7 +134,7 @@ export default function AssetsPage() {
 
   const fetchAssets = useCallback(async () => {
     try {
-      const res = await fetch(`/api/clientes/${slug}/assets`)
+      const res = await apiFetch(`/api/clientes/${slug}/assets`)
       const data = await res.json()
       if (Array.isArray(data)) {
         setAssets(data)
@@ -157,7 +158,7 @@ export default function AssetsPage() {
 
   // Fetch client name
   useEffect(() => {
-    fetch(`/api/clientes/${slug}`)
+    apiFetch(`/api/clientes/${slug}`)
       .then((r) => r.json())
       .then((d) => setClientName(d.name || slug))
       .catch(() => {})
@@ -174,7 +175,7 @@ export default function AssetsPage() {
       if (role) form.append("role", role)
       if (label) form.append("label", label)
 
-      const res = await fetch(`/api/clientes/${slug}/assets`, {
+      const res = await apiFetch(`/api/clientes/${slug}/assets`, {
         method: "POST",
         body: form,
       })
@@ -196,7 +197,7 @@ export default function AssetsPage() {
 
   async function deleteAsset(id: string) {
     try {
-      const res = await fetch(`/api/clientes/${slug}/assets/${id}`, { method: "DELETE" })
+      const res = await apiFetch(`/api/clientes/${slug}/assets/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error()
       showToast("Asset removido")
       setAssets((prev) => prev.filter((a) => a.id !== id))
@@ -208,7 +209,7 @@ export default function AssetsPage() {
   async function prepareLogos() {
     setPreparing(true)
     try {
-      const res = await fetch(`/api/clientes/${slug}/assets/prepare`, { method: "POST" })
+      const res = await apiFetch(`/api/clientes/${slug}/assets/prepare`, { method: "POST" })
       if (!res.ok) throw new Error()
       showToast("Logos processados com sucesso")
       await fetchAssets()
@@ -225,7 +226,7 @@ export default function AssetsPage() {
       // Delete existing color assets
       const colorAssets = assets.filter((a) => a.category === "color")
       for (const ca of colorAssets) {
-        await fetch(`/api/clientes/${slug}/assets/${ca.id}`, { method: "DELETE" })
+        await apiFetch(`/api/clientes/${slug}/assets/${ca.id}`, { method: "DELETE" })
       }
 
       // Save each color as a color asset
@@ -237,7 +238,7 @@ export default function AssetsPage() {
         form.append("role", color.role)
         form.append("label", color.label || color.hex)
 
-        await fetch(`/api/clientes/${slug}/assets`, {
+        await apiFetch(`/api/clientes/${slug}/assets`, {
           method: "POST",
           body: form,
         })

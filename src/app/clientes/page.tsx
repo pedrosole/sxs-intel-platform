@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { Loader2, Calendar, FileText, ExternalLink, Paintbrush } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
 
 interface ClientData {
   id: string
@@ -40,7 +41,7 @@ export default function ClientesPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("/api/clientes")
+    apiFetch("/api/clientes")
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {

@@ -17,6 +17,7 @@ import {
   ImageIcon,
   Paintbrush,
 } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
 
 interface JobOutput {
   agent_id: string
@@ -118,7 +119,7 @@ export default function ClienteDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/clientes/${slug}`)
+    apiFetch(`/api/clientes/${slug}`)
       .then((res) => {
         if (!res.ok) throw new Error("Cliente nao encontrado")
         return res.json()

@@ -19,6 +19,7 @@ import {
   FileDown,
   RectangleHorizontal,
 } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
 import { SIZE_PRESETS, DEFAULT_SIZE, getPreset } from "@/lib/design/size-presets"
 import type { SizePreset } from "@/lib/design/size-presets"
 
@@ -124,7 +125,7 @@ export default function DesignStudioPage() {
     async function load() {
       try {
         // Client info
-        const clientRes = await fetch(`/api/clientes/${slug}`)
+        const clientRes = await apiFetch(`/api/clientes/${slug}`)
         const clientData = await clientRes.json()
         setClientName(clientData.name || slug)
         if (clientData.calendars?.length > 0) {
@@ -132,14 +133,14 @@ export default function DesignStudioPage() {
         }
 
         // Approved calendar pieces (all visual-relevant statuses)
-        const piecesRes = await fetch(`/api/calendario/pieces?slug=${slug}`)
+        const piecesRes = await apiFetch(`/api/calendario/pieces?slug=${slug}`)
         if (piecesRes.ok) {
           const piecesData = await piecesRes.json()
           setPieces(piecesData)
         }
 
         // Logos
-        const logosRes = await fetch(`/api/clientes/${slug}/assets?category=logo`)
+        const logosRes = await apiFetch(`/api/clientes/${slug}/assets?category=logo`)
         if (logosRes.ok) {
           setLogos(await logosRes.json())
         }
@@ -194,7 +195,7 @@ export default function DesignStudioPage() {
     if (!selectedPiece || !bgPrompt.trim()) return
     setGeneratingBg(true)
     try {
-      const res = await fetch("/api/design/generate-image", {
+      const res = await apiFetch("/api/design/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -227,7 +228,7 @@ export default function DesignStudioPage() {
     if (!selectedPiece) return
     setGeneratingPiece(true)
     try {
-      const res = await fetch("/api/design/generate-piece", {
+      const res = await apiFetch("/api/design/generate-piece", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -280,7 +281,7 @@ export default function DesignStudioPage() {
 
     setSaving(true)
     try {
-      await fetch(`/api/design/${dp.id}`, {
+      await apiFetch(`/api/design/${dp.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -312,7 +313,7 @@ export default function DesignStudioPage() {
 
     setExporting(true)
     try {
-      const res = await fetch("/api/design/export", {
+      const res = await apiFetch("/api/design/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ designPieceId: dp.id, sizePreset }),

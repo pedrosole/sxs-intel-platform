@@ -5,6 +5,7 @@ import { Send, Loader2, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { agents } from "@/data/agents"
+import { apiFetch } from "@/lib/api-client"
 import type { Message } from "@/types"
 
 const AGENT_ICONS: Record<string, string> = {
@@ -239,7 +240,7 @@ export function ChatArea() {
 
       if (directAgent) {
         // Direct mode — talk to a single agent
-        const res = await fetch("/api/chat/direct", {
+        const res = await apiFetch("/api/chat/direct", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: apiMessages, agentId: directAgent }),
@@ -254,7 +255,7 @@ export function ChatArea() {
         await processSSEStream(res, abortRef.current.signal, msgIdRef)
       } else {
         // Pipeline mode — Hermes orchestrates
-        const res = await fetch("/api/chat", {
+        const res = await apiFetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: apiMessages }),
@@ -269,7 +270,7 @@ export function ChatArea() {
         let continueInfo = await processSSEStream(res, abortRef.current.signal, msgIdRef)
 
         while (continueInfo) {
-          const nextRes = await fetch("/api/pipeline/continue", {
+          const nextRes = await apiFetch("/api/pipeline/continue", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ jobId: continueInfo.jobId, step: continueInfo.nextStep }),

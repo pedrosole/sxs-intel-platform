@@ -19,6 +19,7 @@ import {
   X,
   Eye,
 } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
 import { SIZE_PRESETS, DEFAULT_SIZE, getPreset } from "@/lib/design/size-presets"
 import type { SizePreset } from "@/lib/design/size-presets"
 
@@ -74,7 +75,7 @@ export default function DesignStudioPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/clientes")
+        const res = await apiFetch("/api/clientes")
         if (res.ok) {
           const data = await res.json()
           setClients(
@@ -118,7 +119,7 @@ export default function DesignStudioPage() {
       const formData = new FormData()
       formData.append("file", file)
 
-      const res = await fetch("/api/design/reference", { method: "POST", body: formData })
+      const res = await apiFetch("/api/design/reference", { method: "POST", body: formData })
       if (!res.ok) {
         const err = await res.json()
         showToast(`Erro: ${err.error}`)
@@ -143,7 +144,7 @@ export default function DesignStudioPage() {
       const formData = new FormData()
       formData.append("url", refUrlInput.trim())
 
-      const res = await fetch("/api/design/reference", { method: "POST", body: formData })
+      const res = await apiFetch("/api/design/reference", { method: "POST", body: formData })
       if (!res.ok) {
         const err = await res.json()
         showToast(`Erro: ${err.error}`)
@@ -166,7 +167,7 @@ export default function DesignStudioPage() {
     if (!bgPrompt.trim()) return
     setGeneratingBg(true)
     try {
-      const res = await fetch("/api/design/generate-image", {
+      const res = await apiFetch("/api/design/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,7 +202,7 @@ export default function DesignStudioPage() {
     }
     setGenerating(true)
     try {
-      const res = await fetch("/api/design/standalone", {
+      const res = await apiFetch("/api/design/standalone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -239,7 +240,7 @@ export default function DesignStudioPage() {
     if (!previewHtml) return
     setExporting(true)
     try {
-      const res = await fetch("/api/design/export-raw", {
+      const res = await apiFetch("/api/design/export-raw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ html: previewHtml, sizePreset }),
