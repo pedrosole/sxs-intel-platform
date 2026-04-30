@@ -1,13 +1,10 @@
-import { chromium } from "playwright-core"
-import chromiumMin from "@sparticuz/chromium-min"
+import chromium from "@sparticuz/chromium"
+import puppeteer from "puppeteer-core"
 import { supabase } from "@/lib/db/supabase"
 import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
-
-const CHROMIUM_PACK_URL =
-  "https://github.com/nichochar/chromium-bin/raw/main/chromium-v131.0.0-pack.tar"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -17,7 +14,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "designPieceId obrigatorio" }, { status: 400 })
   }
 
-  // Load design piece
   const { data: dp, error } = await supabase
     .from("design_pieces")
     .select("*, calendar_pieces!inner(title, format, client_id, clients!inner(slug))")
@@ -35,7 +31,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "HTML nao gerado ainda" }, { status: 400 })
   }
 
-  // Extract slug from nested join
   const calPiece = piece.calendar_pieces as Record<string, unknown>
   const clientData = calPiece.clients as Record<string, unknown>
   const slug = clientData.slug as string
@@ -43,23 +38,23 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    const executablePath = await chromiumMin.executablePath(CHROMIUM_PACK_URL)
+    const executablePath = await chromium.executablePath()
+    const preset = getPreset(sizePresetId || "feed")
 
-    browser = await chromium.launch({
-      args: chromiumMin.args,
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: {
+        width: preset.width,
+        height: preset.height,
+        deviceScaleFactor: preset.scaleFactor,
+      },
       executablePath,
       headless: true,
     })
 
-    const preset = getPreset(sizePresetId || "feed")
-
-    const page = await browser.newPage({
-      viewport: { width: preset.width, height: preset.height },
-      deviceScaleFactor: preset.scaleFactor,
-    })
-
-    await page.setContent(htmlContent, { waitUntil: "networkidle" })
-    await page.waitForTimeout(2000)
+    const page = await browser.newPage()
+    await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+    await new Promise((r) => setTimeout(r, 2000))
 
     const pngBuffer = await page.screenshot({
       type: "png",
@@ -69,7 +64,6 @@ export async function POST(request: Request) {
     await browser.close()
     browser = null
 
-    // Save to Supabase Storage
     const timestamp = Date.now()
     const safeName = title
       .toLowerCase()
@@ -96,14 +90,9 @@ export async function POST(request: Request) {
       .from("exports")
       .getPublicUrl(exportPath)
 
-    const publicUrl = urlData?.publicUrl || null
-
     await supabase
       .from("design_pieces")
-      .update({
-        export_path: exportPath,
-        status: "exported",
-      })
+      .update({ export_path: exportPath, status: "exported" })
       .eq("id", designPieceId)
 
     await supabase
@@ -113,7 +102,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       exportPath,
-      url: publicUrl,
+      url: urlData?.publicUrl || null,
       size: pngBuffer.length,
       dimensions: { width: preset.exportWidth, height: preset.exportHeight },
       sizePreset: preset.id,
@@ -122,8 +111,6 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : "Erro desconhecido"
     return Response.json({ error: `Export falhou: ${message}` }, { status: 500 })
   } finally {
-    if (browser) {
-      await browser.close()
-    }
+    if (browser) await browser.close()
   }
 }

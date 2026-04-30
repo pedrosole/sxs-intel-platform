@@ -1,12 +1,9 @@
-import { chromium } from "playwright-core"
-import chromiumMin from "@sparticuz/chromium-min"
+import chromium from "@sparticuz/chromium"
+import puppeteer from "puppeteer-core"
 import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
-
-const CHROMIUM_PACK_URL =
-  "https://github.com/nichochar/chromium-bin/raw/main/chromium-v131.0.0-pack.tar"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -23,21 +20,22 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    const executablePath = await chromiumMin.executablePath(CHROMIUM_PACK_URL)
+    const executablePath = await chromium.executablePath()
 
-    browser = await chromium.launch({
-      args: chromiumMin.args,
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: {
+        width: preset.width,
+        height: preset.height,
+        deviceScaleFactor: preset.scaleFactor,
+      },
       executablePath,
       headless: true,
     })
 
-    const page = await browser.newPage({
-      viewport: { width: preset.width, height: preset.height },
-      deviceScaleFactor: preset.scaleFactor,
-    })
-
-    await page.setContent(html, { waitUntil: "networkidle" })
-    await page.waitForTimeout(2000)
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: "networkidle0" })
+    await new Promise((r) => setTimeout(r, 2000))
 
     const pngBuffer = await page.screenshot({
       type: "png",
