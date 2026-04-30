@@ -1,10 +1,13 @@
 import { chromium } from "playwright-core"
-import chromiumBin from "@sparticuz/chromium"
+import chromiumMin from "@sparticuz/chromium-min"
 import { supabase } from "@/lib/db/supabase"
 import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
+
+const CHROMIUM_PACK_URL =
+  "https://github.com/nichochar/chromium-bin/raw/main/chromium-v131.0.0-pack.tar"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -40,10 +43,10 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    const executablePath = await chromiumBin.executablePath()
+    const executablePath = await chromiumMin.executablePath(CHROMIUM_PACK_URL)
 
     browser = await chromium.launch({
-      args: chromiumBin.args,
+      args: chromiumMin.args,
       executablePath,
       headless: true,
     })
@@ -55,13 +58,9 @@ export async function POST(request: Request) {
       deviceScaleFactor: preset.scaleFactor,
     })
 
-    // Load HTML content
     await page.setContent(htmlContent, { waitUntil: "networkidle" })
-
-    // Wait for fonts to load
     await page.waitForTimeout(2000)
 
-    // Take screenshot
     const pngBuffer = await page.screenshot({
       type: "png",
       clip: { x: 0, y: 0, width: preset.width, height: preset.height },
@@ -93,14 +92,12 @@ export async function POST(request: Request) {
       return Response.json({ error: `Storage upload falhou: ${uploadError.message}` }, { status: 500 })
     }
 
-    // Get public URL (exports bucket is public)
     const { data: urlData } = supabase.storage
       .from("exports")
       .getPublicUrl(exportPath)
 
     const publicUrl = urlData?.publicUrl || null
 
-    // Update design_pieces
     await supabase
       .from("design_pieces")
       .update({
@@ -109,7 +106,6 @@ export async function POST(request: Request) {
       })
       .eq("id", designPieceId)
 
-    // Update calendar_pieces status
     await supabase
       .from("calendar_pieces")
       .update({ status: "exportado" })

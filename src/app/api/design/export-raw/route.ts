@@ -1,9 +1,12 @@
 import { chromium } from "playwright-core"
-import chromiumBin from "@sparticuz/chromium"
+import chromiumMin from "@sparticuz/chromium-min"
 import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
+
+const CHROMIUM_PACK_URL =
+  "https://github.com/nichochar/chromium-bin/raw/main/chromium-v131.0.0-pack.tar"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -20,10 +23,10 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    const executablePath = await chromiumBin.executablePath()
+    const executablePath = await chromiumMin.executablePath(CHROMIUM_PACK_URL)
 
     browser = await chromium.launch({
-      args: chromiumBin.args,
+      args: chromiumMin.args,
       executablePath,
       headless: true,
     })
