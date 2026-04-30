@@ -112,7 +112,7 @@ export async function POST(request: Request) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-preview-05-20",
+        model: "gemini-2.5-flash-image",
         generationConfig: {
           // @ts-expect-error - responseModalities is valid for image generation
           responseModalities: ["IMAGE"],
