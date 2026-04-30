@@ -1,4 +1,5 @@
 import { chromium } from "playwright-core"
+import chromiumBin from "@sparticuz/chromium"
 import { supabase } from "@/lib/db/supabase"
 import { getPreset } from "@/lib/design/size-presets"
 
@@ -39,8 +40,11 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    // Launch Playwright
+    const executablePath = await chromiumBin.executablePath()
+
     browser = await chromium.launch({
+      args: chromiumBin.args,
+      executablePath,
       headless: true,
     })
 

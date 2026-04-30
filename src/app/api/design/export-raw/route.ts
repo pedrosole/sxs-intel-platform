@@ -1,4 +1,5 @@
 import { chromium } from "playwright-core"
+import chromiumBin from "@sparticuz/chromium"
 import { getPreset } from "@/lib/design/size-presets"
 
 export const runtime = "nodejs"
@@ -19,7 +20,13 @@ export async function POST(request: Request) {
 
   let browser = null
   try {
-    browser = await chromium.launch({ headless: true })
+    const executablePath = await chromiumBin.executablePath()
+
+    browser = await chromium.launch({
+      args: chromiumBin.args,
+      executablePath,
+      headless: true,
+    })
 
     const page = await browser.newPage({
       viewport: { width: preset.width, height: preset.height },
