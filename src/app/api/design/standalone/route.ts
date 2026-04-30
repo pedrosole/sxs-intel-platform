@@ -54,7 +54,6 @@ export async function POST(request: Request) {
   let headingFont = "'Inter', sans-serif"
   let bodyFont = "'Inter', sans-serif"
   let fontFaces = ""
-  let fontBadge = "Google Fonts"
   let logoBase64 = ""
   let clientName = ""
 
@@ -83,7 +82,6 @@ export async function POST(request: Request) {
       // Fonts
       const fonts = await listClientAssets(clientId, "font")
       if (fonts.length > 0) {
-        fontBadge = "Fonte propria"
         for (const font of fonts) {
           const f = font as Record<string, unknown>
           const fontBase64 = await storageToBase64("client-assets", f.storage_path as string)
@@ -239,10 +237,6 @@ h1 {
   align-items: center;
   justify-content: space-between;
 }
-.font-badge {
-  font-size: 9px;
-  opacity: 0.4;
-}
 </style>
 </head>
 <body>
@@ -255,16 +249,13 @@ h1 {
   <div class="main">
     ${contentHtml}
   </div>
-  <div class="footer">
-    <span class="font-badge">${fontBadge}${clientName ? ` | ${clientName}` : ""}</span>
-  </div>
+  <div class="footer"></div>
 </div>
 </body>
 </html>`
 
   return Response.json({
     html,
-    fontBadge,
     sizePreset: preset,
   })
 }

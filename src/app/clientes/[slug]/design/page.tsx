@@ -111,7 +111,6 @@ export default function DesignStudioPage() {
   const [exportUrl, setExportUrl] = useState<string | null>(null)
   const [exportDimensions, setExportDimensions] = useState<{ width: number; height: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [fontBadge, setFontBadge] = useState("")
   const [sizePreset, setSizePreset] = useState<string>(DEFAULT_SIZE)
   const [activePreset, setActivePreset] = useState<SizePreset>(getPreset(DEFAULT_SIZE))
 
@@ -248,7 +247,6 @@ export default function DesignStudioPage() {
 
       const data = await res.json()
       setPreviewHtml(data.html)
-      setFontBadge(data.fontBadge || "")
       if (data.sizePreset) setActivePreset(data.sizePreset)
 
       // Update local design pieces state
@@ -538,20 +536,6 @@ export default function DesignStudioPage() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Font info */}
-                  {fontBadge && (
-                    <div className="glass-card rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-foreground">Fonte</h4>
-                      <span className={`text-xs rounded px-2 py-0.5 mt-1 inline-block ${
-                        fontBadge === "Fonte propria"
-                          ? "bg-green-500/10 text-green-500"
-                          : "bg-amber-500/10 text-amber-500"
-                      }`}>
-                        {fontBadge}
-                      </span>
-                    </div>
-                  )}
 
                   {/* Generate preview */}
                   <Button
