@@ -174,6 +174,8 @@ export default function DesignStudioPage() {
           clientSlug: clientSlug || undefined,
           prompt: bgPrompt,
           format: sizePreset === "stories" ? "reel" : "post",
+          primaryColor: !clientSlug ? primaryColor : undefined,
+          accentColor: !clientSlug ? accentColor : undefined,
         }),
       })
 
@@ -215,6 +217,11 @@ export default function DesignStudioPage() {
           clientSlug: clientSlug || undefined,
           bgImagePath: bgImagePath || undefined,
           logoVariant: logoVariant !== "auto" ? logoVariant : undefined,
+          reference: refImageUrl ? {
+            imageUrl: refImageUrl,
+            keep: Array.from(refKeep),
+            notes: refNotes || undefined,
+          } : undefined,
         }),
       })
 

@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     clientSlug,
     bgImagePath,
     logoVariant,
+    reference,
   } = body as {
     title: string
     bodyText?: string
@@ -36,6 +37,11 @@ export async function POST(request: Request) {
     clientSlug?: string
     bgImagePath?: string
     logoVariant?: string
+    reference?: {
+      imageUrl: string
+      keep: string[]
+      notes?: string
+    }
   }
 
   if (!title) {
@@ -127,6 +133,25 @@ export async function POST(request: Request) {
     bgBase64 = await storageToBase64("generated-images", bgImagePath) || ""
   }
 
+  // Reference-based style adjustments
+  let refStyle = ""
+  let refComment = ""
+  if (reference) {
+    const keep = new Set(reference.keep || [])
+    refComment = `<!-- Reference: ${reference.imageUrl} | Keep: ${reference.keep.join(", ")} ${reference.notes ? `| Notes: ${reference.notes}` : ""} -->\n`
+
+    // Apply style hints based on what to keep
+    if (keep.has("espacamento")) {
+      refStyle += "  padding: 40px 36px;\n"
+    }
+    if (keep.has("tipografia")) {
+      refStyle += "  letter-spacing: 0.02em;\n"
+    }
+    if (keep.has("composicao")) {
+      refStyle += "  text-align: center;\n  align-items: center;\n"
+    }
+  }
+
   // Build HTML
   const truncated = bodyText && bodyText.length > 300 ? bodyText.slice(0, 300) + "..." : (bodyText || "")
   const contentHtml = `
@@ -137,7 +162,7 @@ export async function POST(request: Request) {
 
   const html = `<!DOCTYPE html>
 <html>
-<head>
+${refComment}<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=${preset.width}">
 <style>
@@ -169,7 +194,7 @@ body {
   flex-direction: column;
   justify-content: space-between;
   padding: 32px 28px;
-}
+${refStyle}}
 .logo {
   width: auto;
   height: 36px;

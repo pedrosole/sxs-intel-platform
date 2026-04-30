@@ -41,49 +41,60 @@ The image should work as a background with a dark overlay on top for text readab
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { clientSlug, prompt, pieceId, format } = body as {
-    clientSlug: string
+  const { clientSlug, prompt, pieceId, format, primaryColor, accentColor } = body as {
+    clientSlug?: string
     prompt: string
     pieceId?: string
     format?: string
+    primaryColor?: string
+    accentColor?: string
   }
 
-  if (!clientSlug || !prompt) {
-    return Response.json({ error: "clientSlug e prompt sao obrigatorios" }, { status: 400 })
+  if (!prompt) {
+    return Response.json({ error: "prompt e obrigatorio" }, { status: 400 })
   }
 
   if (!process.env.GEMINI_API_KEY) {
     return Response.json({ error: "GEMINI_API_KEY nao configurada" }, { status: 500 })
   }
 
-  // Get client
-  const { data: client, error: clientError } = await supabase
-    .from("clients")
-    .select("id")
-    .eq("slug", clientSlug)
-    .single()
+  let colors: { hex: string; label: string }[] = []
+  let brandTone: string | undefined
 
-  if (clientError || !client) {
-    return Response.json({ error: "Cliente nao encontrado" }, { status: 404 })
+  if (clientSlug) {
+    // Get client
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("slug", clientSlug)
+      .single()
+
+    if (clientError || !client) {
+      return Response.json({ error: "Cliente nao encontrado" }, { status: 404 })
+    }
+
+    const clientId = client.id as string
+
+    // Load client colors
+    const colorAssets = await listClientAssets(clientId, "color")
+    colors = colorAssets.map((a: Record<string, unknown>) => ({
+      hex: ((a.metadata as Record<string, unknown>)?.hex as string) || "#333333",
+      label: (a.label as string) || "",
+    }))
+
+    // Load brand voice for tone
+    const { data: summary } = await supabase
+      .from("client_summaries")
+      .select("brand_voice_summary")
+      .eq("client_id", clientId)
+      .single()
+
+    brandTone = (summary as { brand_voice_summary: string | null } | null)?.brand_voice_summary?.slice(0, 200) || undefined
+  } else {
+    // Use manual colors if provided
+    if (primaryColor) colors.push({ hex: primaryColor, label: "primary" })
+    if (accentColor) colors.push({ hex: accentColor, label: "accent" })
   }
-
-  const clientId = client.id as string
-
-  // Load client colors
-  const colorAssets = await listClientAssets(clientId, "color")
-  const colors = colorAssets.map((a: Record<string, unknown>) => ({
-    hex: ((a.metadata as Record<string, unknown>)?.hex as string) || "#333333",
-    label: (a.label as string) || "",
-  }))
-
-  // Load brand voice for tone
-  const { data: summary } = await supabase
-    .from("client_summaries")
-    .select("brand_voice_summary")
-    .eq("client_id", clientId)
-    .single()
-
-  const brandTone = (summary as { brand_voice_summary: string | null } | null)?.brand_voice_summary?.slice(0, 200) || undefined
 
   // Build enriched prompt
   const fullPrompt = buildImagePrompt({
@@ -145,9 +156,10 @@ export async function POST(request: Request) {
 
   // Save to Supabase Storage
   const timestamp = Date.now()
+  const folder = clientSlug || "standalone"
   const filename = pieceId
-    ? `${clientSlug}/piece-${pieceId}-${timestamp}.png`
-    : `${clientSlug}/bg-${timestamp}.png`
+    ? `${folder}/piece-${pieceId}-${timestamp}.png`
+    : `${folder}/bg-${timestamp}.png`
 
   const { error: uploadError } = await supabase.storage
     .from("generated-images")
