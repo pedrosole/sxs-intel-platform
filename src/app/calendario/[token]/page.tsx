@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { Check, X, ChevronLeft, Clock, Share2, MessageSquare, Paintbrush, FileDown, RefreshCw, AlertTriangle } from "lucide-react"
+import { Check, X, ChevronLeft, Clock, Share2, MessageSquare, Paintbrush, FileDown, RefreshCw, AlertTriangle, Plus } from "lucide-react"
 
 // ── Types ──
 interface Piece {
@@ -82,6 +82,9 @@ export default function CalendarioPage() {
   const [saving, setSaving] = useState(false)
   const [refacting, setRefacting] = useState<string | null>(null)
   const [refactError, setRefactError] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addModalFormat, setAddModalFormat] = useState<string>("carrossel")
+  const [addingPiece, setAddingPiece] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -132,6 +135,23 @@ export default function CalendarioPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ generalComments }),
     })
+  }
+
+  async function addPiece(data: { title: string; format: string; day: number; caption?: string }) {
+    setAddingPiece(true)
+    try {
+      const res = await fetch(`/api/calendario/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) return
+      const { piece } = await res.json()
+      setPieces((prev) => [...prev, piece as Piece].sort((a, b) => a.day - b.day || a.sort_order - b.sort_order))
+      setShowAddModal(false)
+    } finally {
+      setAddingPiece(false)
+    }
   }
 
   async function refactPiece(pieceId: string) {
@@ -474,7 +494,49 @@ export default function CalendarioPage() {
             className="min-h-[100px] w-full resize-none rounded-lg border border-border bg-background/50 p-3 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
         </div>
+        {/* ── Adicionar Peça Manual ── */}
+        <div className="mt-6 rounded-xl border border-dashed border-border bg-card/30 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Plus className="h-4 w-4 text-muted-foreground" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Adicionar Peça
+            </p>
+          </div>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Adicione peças extras fora do ciclo gerado. Escolha o formato e preencha os dados manualmente.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { format: "carrossel", icon: "🎠", label: "Carrossel" },
+              { format: "reel",      icon: "🎬", label: "Reel" },
+              { format: "estatico",  icon: "🖼️", label: "Estático" },
+              { format: "stories",   icon: "📱", label: "Stories" },
+            ].map((f) => (
+              <button
+                key={f.format}
+                type="button"
+                onClick={() => { setAddModalFormat(f.format); setShowAddModal(true) }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-foreground active:scale-[0.98]"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {f.icon} {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* ── Add Piece Modal ── */}
+      {showAddModal && (
+        <AddPieceModal
+          format={addModalFormat}
+          daysInMonth={daysInMonth}
+          monthName={monthName}
+          saving={addingPiece}
+          onSubmit={addPiece}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
 
       {/* ── Detail Panel (Sidebar Desktop / Modal Mobile) ── */}
       {selectedPiece && (
@@ -728,5 +790,151 @@ function ContentSection({ label, content }: { label: string; content: string }) 
         {content}
       </div>
     </div>
+  )
+}
+
+// ── Add Piece Modal ──
+
+const MANUAL_FORMATS = [
+  { id: "carrossel", icon: "🎠", label: "Carrossel" },
+  { id: "reel",      icon: "🎬", label: "Reel" },
+  { id: "estatico",  icon: "🖼️", label: "Estático" },
+  { id: "stories",   icon: "📱", label: "Stories" },
+] as const
+
+interface AddPieceModalProps {
+  format: string
+  daysInMonth: number
+  monthName: string
+  saving: boolean
+  onSubmit: (data: { title: string; format: string; day: number; caption?: string }) => void
+  onClose: () => void
+}
+
+function AddPieceModal({ format: initialFormat, daysInMonth, monthName, saving, onSubmit, onClose }: AddPieceModalProps) {
+  const [selectedFormat, setSelectedFormat] = useState(initialFormat)
+  const [day, setDay] = useState(1)
+  const [title, setTitle] = useState("")
+  const [caption, setCaption] = useState("")
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    onSubmit({ title, format: selectedFormat, day, caption: caption.trim() || undefined })
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="fixed inset-x-4 top-1/2 z-50 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 shadow-2xl sm:inset-x-auto sm:left-1/2 sm:w-[480px] sm:-translate-x-1/2">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-base font-bold text-foreground">Adicionar Peça Manual</h2>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Format selector */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Formato
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {MANUAL_FORMATS.map((f) => {
+                const fmt = FORMAT_COLORS[f.id] || FORMAT_COLORS.post
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setSelectedFormat(f.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all ${
+                      selectedFormat === f.id
+                        ? `${fmt.bg} ${fmt.text} border-transparent ring-1 ring-current`
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    }`}
+                  >
+                    {f.icon} {f.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Day selector */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Data
+            </label>
+            <select
+              value={day}
+              onChange={(e) => setDay(parseInt(e.target.value))}
+              className="w-full rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-foreground focus:border-primary/50 focus:outline-none"
+            >
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>
+                  {String(d).padStart(2, "0")} de {monthName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Título <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex: Dica rápida de mercado"
+              className="w-full rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+              autoFocus
+            />
+          </div>
+
+          {/* Caption (optional) */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Legenda <span className="text-muted-foreground/60 normal-case font-normal">(opcional)</span>
+            </label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Texto da legenda ou observações..."
+              rows={3}
+              className="w-full resize-none rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || saving}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-accent transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+            >
+              {saving ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              {saving ? "Adicionando..." : "Adicionar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   )
 }

@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Send, Loader2, ChevronDown } from "lucide-react"
+import { Send, Loader2, ChevronDown, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { agents } from "@/data/agents"
 import { apiFetch } from "@/lib/api-client"
+import { DemandBuilder } from "./DemandBuilder"
 import type { Message } from "@/types"
 
 const AGENT_ICONS: Record<string, string> = {
@@ -54,6 +55,7 @@ export function ChatArea() {
   const [pipelineProgress, setPipelineProgress] = useState<{ step: number; total: number } | null>(null)
   const [directAgent, setDirectAgent] = useState<string | null>(null)
   const [showAgentPicker, setShowAgentPicker] = useState(false)
+  const [showDemandBuilder, setShowDemandBuilder] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const currentMsgIdRef = useRef<string | null>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -208,19 +210,25 @@ export function ChatArea() {
     return pendingContinue
   }
 
-  async function handleSend() {
-    if (!input.trim() || isLoading) return
+  function handleDemandSubmit(demandText: string, _monthYear: string) {
+    setShowDemandBuilder(false)
+    handleSend(demandText)
+  }
+
+  async function handleSend(overrideText?: string) {
+    const text = overrideText ?? input
+    if (!text.trim() || isLoading) return
 
     const userMsg: Message = {
       id: `msg-${Date.now()}`,
       role: "user",
-      content: input,
+      content: text,
       timestamp: new Date().toISOString(),
     }
 
     const updatedMessages = [...messages, userMsg]
     setMessages(updatedMessages)
-    setInput("")
+    if (!overrideText) setInput("")
     const targetAgent = directAgent || "hermes"
     setIsLoading(true)
     setActiveAgentId(targetAgent)
@@ -394,7 +402,16 @@ export function ChatArea() {
       </ScrollArea>
 
       <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
-        <div className="mx-auto max-w-3xl">
+        <div className="relative mx-auto max-w-3xl">
+
+          {/* Demand Builder panel */}
+          {showDemandBuilder && !isLoading && (
+            <DemandBuilder
+              onSubmit={handleDemandSubmit}
+              onClose={() => setShowDemandBuilder(false)}
+            />
+          )}
+
           <div className="mb-2 flex items-center gap-2 flex-wrap">
             {isLoading && activeAgentId ? (
               <span
@@ -405,6 +422,7 @@ export function ChatArea() {
                 {AGENT_ICONS[activeAgentId]} @{activeAgentId}
               </span>
             ) : (
+              <>
               <div className="relative" ref={pickerRef}>
                 <button
                   type="button"
@@ -473,6 +491,28 @@ export function ChatArea() {
                   </div>
                 )}
               </div>
+
+              {/* Demand Builder toggle button */}
+              {!directAgent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAgentPicker(false)
+                    setShowDemandBuilder((v) => !v)
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 transition-colors ${
+                    showDemandBuilder
+                      ? "border-primary/50 bg-primary/10 text-primary"
+                      : "border-border bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                  style={{ fontSize: "var(--font-caption)" }}
+                  title="Definir demanda de produção"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span>Demanda</span>
+                </button>
+              )}
+              </>
             )}
           </div>
           <div className="flex gap-2">
@@ -492,7 +532,7 @@ export function ChatArea() {
               rows={1}
             />
             <Button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={isLoading || !input.trim()}
               size="icon"
               className="shrink-0 rounded-xl bg-primary text-primary-foreground shadow-accent transition-all hover:brightness-110 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"

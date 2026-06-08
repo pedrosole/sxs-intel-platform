@@ -247,7 +247,7 @@ Regras:
 
 ## Regras
 - Calendario precisa ser EXECUTAVEL (datas reais, titulos concretos)
-- Diversidade de formatos e estagios de funil
+- **FORMATOS: SE o pedido especificou formatos explicitamente (ex: "5 reels", "3 carrossels", "2 estaticos"), use EXATAMENTE esses formatos nas proporcoes pedidas — ZERO substituicao. A diversidade de formatos se aplica APENAS quando o pedido e generico (ex: "10 posts", "12 conteudos").**
 - Nenhum subtema repetido em menos de 5 dias de distancia
 - Portugues brasileiro
 - Numeracao sequencial das pecas: PECA 1, PECA 2, PECA 3...`,

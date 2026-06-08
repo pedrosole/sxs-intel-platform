@@ -191,20 +191,28 @@ REGRA: Cada PECA N acima corresponde ao PECA N no seu calendario editorial. A da
 }
 
 // Parse "quantas pecas" da demanda (default 12)
+// Regra: keywords gerais (posts, peças, conteúdos) indicam o TOTAL.
+// Keywords de formato (reels, carrossels, estáticos, stories) indicam breakdown.
+// Se há keywords gerais, usa a soma delas como total e ignora o breakdown.
+// Se há apenas keywords de formato, soma o breakdown.
+// Isso evita dupla contagem em "10 posts: 5 reels e 5 carrossels" → 10, não 20.
 export function parsePieceCount(demand: string): number {
-  // procura padroes como "12 pecas", "10 posts", "6 conteudos", "8 reels", etc
-  const patterns = [
-    /(\d+)\s*(?:peças?|pecas?|posts?|conteudos?|conteúdos?|reels?|carrossels?|carrosséis?|estaticos?|estáticos?|stories|videos?|vídeos?|roteiros?)/i,
-    /(\d+)\s*(?:entregas?|entregaveis?|entregáveis?|entregas?)/i,
-  ]
-  let total = 0
-  for (const pattern of patterns) {
-    const matches = demand.matchAll(new RegExp(pattern, "gi"))
-    for (const m of matches) {
-      total += parseInt(m[1], 10)
-    }
+  const generalPattern = /(\d+)\s*(?:peças?|pecas?|posts?|conteudos?|conteúdos?|entregas?|entregaveis?|entregáveis?)/gi
+  const formatPattern = /(\d+)\s*(?:reels?|carrossels?|carrosséis?|estaticos?|estáticos?|stories|videos?|vídeos?|roteiros?)/gi
+
+  let generalTotal = 0
+  for (const m of demand.matchAll(generalPattern)) {
+    generalTotal += parseInt(m[1], 10)
   }
-  if (total > 0) return total
+
+  if (generalTotal > 0) return generalTotal
+
+  let formatTotal = 0
+  for (const m of demand.matchAll(formatPattern)) {
+    formatTotal += parseInt(m[1], 10)
+  }
+
+  if (formatTotal > 0) return formatTotal
 
   // fallback: primeiro numero da string
   const firstNumber = demand.match(/\b(\d+)\b/)
